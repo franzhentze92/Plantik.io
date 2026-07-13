@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-body: var(--font-manrope);
+  --font-display: var(--font-dm-serif);
+  --font-mono: var(--font-plex-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-brand-cream text-brand-carbon antialiased;
+}
+
+/* Focus visibility for accessibility */
+:focus-visible {
+  outline: 2px solid #1f5e3b;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.container-app {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+}
+
+/* Inside the app shell (side-menu area) content should use the full available
+   width instead of the marketing max-width, so there's no wasted space on the
+   sides. Wider gutters keep it breathable on large screens. */
+.app-shell .container-app {
+  @apply max-w-none px-4 sm:px-6 lg:px-10 xl:px-12;
+}
+
+.card-surface {
+  @apply rounded-xl2 border border-brand-beige/60 bg-white shadow-soft;
+}
+
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-[0.14em] text-brand-moss;
+}
+
+/* Marketing site utilities */
+.mkt-eyebrow {
+  @apply font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-tech-teal;
+}
+
+.mkt-gradient-text {
+  background: linear-gradient(90deg, #a6ff3c 0%, #17e9b0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.mkt-glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.mkt-card {
+  @apply rounded-2xl border border-tech-canopy2 bg-tech-canopy2/40;
+}
+
+.mkt-blob {
+  @apply pointer-events-none absolute rounded-full opacity-60 animate-glow;
+  background: radial-gradient(circle, rgba(166, 255, 60, 0.35) 0%, rgba(23, 233, 176, 0) 70%);
+}
+
+/* Confetti burst used on the order-success screen. */
+@keyframes verdea-confetti-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift, 0), 110vh, 0)
+      rotate(var(--confetti-spin, 540deg));
+    opacity: 1;
+  }
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  will-change: transform;
+  animation-name: verdea-confetti-fall;
+  animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti-piece {
+    display: none;
+  }
+}

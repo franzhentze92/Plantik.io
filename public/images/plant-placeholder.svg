@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <rect width="600" height="600" fill="#EFE9DD"/>
+  <ellipse cx="300" cy="520" rx="180" ry="18" fill="#D8CEB8"/>
+  <path d="M215 460 L235 340 L365 340 L385 460 Z" fill="#B5734A"/>
+  <path d="M215 460 L235 340 L365 340 L385 460 Z" fill="none" stroke="#8F5836" stroke-width="4"/>
+  <rect x="215" y="450" width="170" height="14" fill="#8F5836"/>
+  <g fill="#3F7A4E">
+    <path d="M300 360 C300 260 240 210 200 190 C230 260 250 320 300 360 Z"/>
+    <path d="M300 360 C300 250 360 200 400 175 C365 255 340 320 300 360 Z"/>
+    <path d="M300 360 C280 240 300 170 300 140 C330 220 320 300 300 360 Z"/>
+    <path d="M300 360 C255 300 210 280 175 275 C215 310 255 335 300 360 Z"/>
+    <path d="M300 360 C345 300 390 280 425 275 C385 310 345 335 300 360 Z"/>
+  </g>
+  <g fill="#4E8F5F">
+    <path d="M300 360 C295 275 320 220 335 195 C345 260 330 320 300 360 Z"/>
+    <path d="M300 360 C270 290 235 265 205 260 C240 295 270 325 300 360 Z"/>
+  </g>
+  <text x="300" y="560" font-family="Georgia, serif" font-size="22" fill="#8A8272" text-anchor="middle">Plantik</text>
+</svg>
