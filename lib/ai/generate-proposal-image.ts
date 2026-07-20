@@ -1,6 +1,7 @@
 import OpenAI, { toFile } from "openai";
 import fs from "fs";
 import path from "path";
+import sharp from "sharp";
 import { PlacementLocation } from "@/types/space-analysis";
 import { Plant } from "@/types";
 import { buildPlacementMask } from "./generate-mask";
@@ -17,6 +18,23 @@ function extFromType(type: string): string {
   return "jpg";
 }
 
+/** Keep room photos small enough for Amplify's ~30s compute + 5.7MB response caps. */
+async function prepareRoomImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate()
+    .resize(1280, 1280, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+}
+
+async function prepareReferenceImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate()
+    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 80, mozjpeg: true })
+    .toBuffer();
+}
+
 /**
  * Loads a product photo so it can be passed to the image model as a visual
  * reference. Catalog images are remote URLs (e.g. the EPA storefront), so we
@@ -31,23 +49,26 @@ async function loadReferenceImage(
     return null;
   }
   try {
+    let buffer: Buffer;
+    let type = "image/jpeg";
     if (/^https?:\/\//i.test(src)) {
       const res = await fetch(src);
       if (!res.ok) return null;
-      const type = res.headers.get("content-type") || "image/jpeg";
-      const buffer = Buffer.from(await res.arrayBuffer());
-      return { buffer, type, ext: extFromType(type) };
+      type = res.headers.get("content-type") || "image/jpeg";
+      buffer = Buffer.from(await res.arrayBuffer());
+    } else {
+      const filePath = path.join(process.cwd(), "public", src);
+      buffer = fs.readFileSync(filePath);
+      const ext = path.extname(src).toLowerCase().replace(".", "") || "jpg";
+      type =
+        ext === "png"
+          ? "image/png"
+          : ext === "webp"
+            ? "image/webp"
+            : "image/jpeg";
     }
-    const filePath = path.join(process.cwd(), "public", src);
-    const buffer = fs.readFileSync(filePath);
-    const ext = path.extname(src).toLowerCase().replace(".", "") || "jpg";
-    const type =
-      ext === "png"
-        ? "image/png"
-        : ext === "webp"
-          ? "image/webp"
-          : "image/jpeg";
-    return { buffer, type, ext };
+    const prepared = await prepareReferenceImage(buffer);
+    return { buffer: prepared, type: "image/jpeg", ext: "jpg" };
   } catch {
     return null;
   }
@@ -149,26 +170,31 @@ REQUIREMENTS:
 - Do not add any plant or object not listed above (a wall shelf under a wall plant is allowed as described).`;
 }
 
+export interface GeneratedProposalImage {
+  imageBase64: string;
+  mediaType: "image/jpeg";
+}
+
 export async function generateProposalImage(
   imageBase64: string,
   imageMediaType: "image/jpeg" | "image/png" | "image/webp",
   items: ProposalPlantPlacement[]
-): Promise<string> {
-  const buffer = Buffer.from(imageBase64, "base64");
-  const extension = imageMediaType.split("/")[1];
-  const imageFile = await toFile(buffer, `room.${extension}`, {
-    type: imageMediaType,
+): Promise<GeneratedProposalImage> {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
+
+  const originalBuffer = Buffer.from(imageBase64, "base64");
+  const roomBuffer = await prepareRoomImage(originalBuffer);
+  const imageFile = await toFile(roomBuffer, "room.jpg", {
+    type: "image/jpeg",
   });
 
-  const references: ReferenceImage[] = [];
-  for (const { plant, planter, plato } of items) {
-    const plantRef = await loadReferenceImage(plant.images?.[0]);
-    if (plantRef) references.push(plantRef);
-    const planterRef = await loadReferenceImage(planter?.image);
-    if (planterRef) references.push(planterRef);
-    const platoRef = await loadReferenceImage(plato?.image);
-    if (platoRef) references.push(platoRef);
-  }
+  // Plant photo only — skip pot/saucer refs to stay under Amplify's ~30s limit.
+  const references = (
+    await Promise.all(items.map(({ plant }) => loadReferenceImage(plant.images?.[0])))
+  ).filter((ref): ref is ReferenceImage => Boolean(ref));
+
   const referenceFiles = await Promise.all(
     references.map((ref, i) =>
       toFile(ref.buffer, `reference-${i}.${ref.ext}`, { type: ref.type })
@@ -178,7 +204,7 @@ export async function generateProposalImage(
   const prompt = buildEditPrompt(items, referenceFiles.length > 0);
 
   const maskBuffer = await buildPlacementMask(
-    buffer,
+    roomBuffer,
     items.map(({ placement, plant }) => ({
       xPercent: placement.x,
       yPercent: placement.y,
@@ -196,9 +222,10 @@ export async function generateProposalImage(
     image: [imageFile, ...referenceFiles],
     mask: maskFile,
     prompt,
-    size: "auto",
-    quality: "high",
-    input_fidelity: "high",
+    size: "1024x1024",
+    // Amplify Hosting SSR hard-caps ~30s; "medium"/"high" often 504.
+    quality: "low",
+    input_fidelity: "low",
   });
 
   const b64 = response.data?.[0]?.b64_json;
@@ -206,5 +233,13 @@ export async function generateProposalImage(
     throw new Error("No image returned from generation");
   }
 
-  return b64;
+  // Compress so the JSON response stays under Amplify's ~5.72MB limit.
+  const compressed = await sharp(Buffer.from(b64, "base64"))
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toBuffer();
+
+  return {
+    imageBase64: compressed.toString("base64"),
+    mediaType: "image/jpeg",
+  };
 }

@@ -518,11 +518,20 @@ export default function DesignSpacePage() {
         });
 
         if (!imgResponse.ok) {
-          throw new Error("No se pudo generar la visualización");
+          if (imgResponse.status === 504 || imgResponse.status === 503) {
+            throw new Error(
+              "La visualización tardó demasiado. Intenta con menos plantas o vuelve a intentar."
+            );
+          }
+          const errBody = await imgResponse.json().catch(() => null);
+          throw new Error(
+            errBody?.error || "No se pudo generar la visualización"
+          );
         }
 
         const imgResult = await imgResponse.json();
-        const dataUrl = `data:image/png;base64,${imgResult.imageBase64}`;
+        const mediaType = imgResult.mediaType || "image/png";
+        const dataUrl = `data:${mediaType};base64,${imgResult.imageBase64}`;
         setGeneratedImageUrl(dataUrl);
         setAddedToCart(false);
         setSavedProposalId(null);

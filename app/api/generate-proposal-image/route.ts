@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateProposalImage } from "@/lib/ai/generate-proposal-image";
 
+// Hint for platforms that honor it (Amplify Hosting still caps ~30s).
+export const maxDuration = 60;
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -13,14 +17,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const generatedImageBase64 = await generateProposalImage(
-      imageBase64,
-      imageMediaType,
-      items
-    );
+    const { imageBase64: generatedImageBase64, mediaType } =
+      await generateProposalImage(
+        imageBase64,
+        imageMediaType as "image/jpeg" | "image/png" | "image/webp",
+        items
+      );
 
     return NextResponse.json(
-      { imageBase64: generatedImageBase64 },
+      { imageBase64: generatedImageBase64, mediaType },
       { status: 200 }
     );
   } catch (error) {
