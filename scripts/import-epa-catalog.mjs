@@ -58,11 +58,21 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // ---- helpers ------------------------------------------------------------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function cleanCatalogName(name = "") {
-  return name
+function cleanCatalogText(text = "") {
+  return text
     .replace(/\s*\([^)]*[Rr]etiro en [Tt]ienda\)\s*/g, " ")
+    .replace(
+      /\s*[Dd]isponibles?\s+exclusivamente\s+para\s+retiro\s+en\s+tienda[^.]*\.?/gi,
+      " "
+    )
+    .replace(/\s*[ÚúUu]nicamente\s+para\s+retiro\s+en\s+tienda[^.]*\.?/gi, " ")
     .replace(/\s{2,}/g, " ")
+    .replace(/\s+\./g, ".")
     .trim();
+}
+
+function cleanCatalogName(name = "") {
+  return cleanCatalogText(name);
 }
 
 function decodeEntities(str = "") {
@@ -263,7 +273,9 @@ async function scrapeProduct(url) {
         : slugFromUrl(url),
       slug: slugFromUrl(url),
       url,
-      description: ld.description ? decodeEntities(ld.description) : null,
+      description: ld.description
+        ? cleanCatalogText(decodeEntities(ld.description))
+        : null,
       category: CATEGORY,
       source_category_url: CATEGORY_URL,
       currency: offer?.priceCurrency || "GTQ",

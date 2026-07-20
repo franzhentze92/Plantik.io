@@ -7,12 +7,22 @@ const PLANT_PLACEHOLDER_IMAGE = "/images/plant-placeholder.svg";
 // Below this many units in stock a product is flagged as "few units left".
 const LOW_STOCK_THRESHOLD = 5;
 
-/** Strip EPA pickup-only disclaimers from product titles. */
-function cleanCatalogName(name: string): string {
-  return name
+/** Strip EPA pickup-only disclaimers from product titles and descriptions. */
+function cleanCatalogText(text: string): string {
+  return text
     .replace(/\s*\([^)]*[Rr]etiro en [Tt]ienda\)\s*/g, " ")
+    .replace(
+      /\s*[Dd]isponibles?\s+exclusivamente\s+para\s+retiro\s+en\s+tienda[^.]*\.?/gi,
+      " "
+    )
+    .replace(/\s*[ÚúUu]nicamente\s+para\s+retiro\s+en\s+tienda[^.]*\.?/gi, " ")
     .replace(/\s{2,}/g, " ")
+    .replace(/\s+\./g, ".")
     .trim();
+}
+
+function cleanCatalogName(name: string): string {
+  return cleanCatalogText(name);
 }
 
 const PLANT_SELECT = `
@@ -182,7 +192,7 @@ function mapEpaProductToPlant(p: any): Plant {
     .filter(Boolean);
   if (images.length === 0 && p.image_url) images.push(p.image_url);
 
-  const description = p.description || "";
+  const description = cleanCatalogText(p.description || "");
   const shortDescription =
     description.length > 140 ? `${description.slice(0, 137)}...` : description;
 
@@ -845,7 +855,7 @@ function mapEpaProductToAccessory(p: any): Accessory {
     id: `${EPA_CATALOG_PREFIX}${p.id}`,
     category,
     name: cleanCatalogName(p.name),
-    description: p.description || "",
+    description: cleanCatalogText(p.description || ""),
     priceQ: Number(p.price_q),
     swatch,
     iconKey:
