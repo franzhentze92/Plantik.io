@@ -35,6 +35,7 @@ import {
 import { Plant, Planter } from "@/types";
 import type { Accessory } from "@/data/accessories";
 import { CreationThumbnail } from "@/components/creations/CreationThumbnail";
+import { isCatalogProductId } from "@/lib/catalog-ids";
 
 type StepKey = "saucer" | "planter" | "soil" | "mulch" | "plant";
 
@@ -444,7 +445,7 @@ export default function BuildPlantPage() {
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                     {plants.map((p) => {
                       const active = selections.plant === p.id;
-                      const isEpaPlant = p.id.startsWith("epa-");
+                      const useContain = isCatalogProductId(p.id);
                       return (
                         <button
                           key={p.id}
@@ -460,7 +461,7 @@ export default function BuildPlantPage() {
                           <div
                             className={cn(
                               "relative h-32 w-full overflow-hidden",
-                              isEpaPlant ? "bg-white" : "bg-brand-cream"
+                              useContain ? "bg-white" : "bg-brand-cream"
                             )}
                           >
                             <Image
@@ -468,7 +469,7 @@ export default function BuildPlantPage() {
                               alt={p.name}
                               fill
                               className={cn(
-                                isEpaPlant ? "object-contain p-2" : "object-cover",
+                                useContain ? "object-contain p-2" : "object-cover",
                                 "transition-transform duration-300 group-hover:scale-105"
                               )}
                             />

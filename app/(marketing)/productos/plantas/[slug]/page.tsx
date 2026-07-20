@@ -8,6 +8,7 @@ import {
   getPlantersFromDB,
   getAccessoriesFromDB,
 } from "@/lib/supabase-queries";
+import { isCatalogProductId } from "@/lib/catalog-ids";
 import { buildRelatedProducts } from "@/lib/recommendations/related-products";
 import { LoginToBuyPanel } from "@/components/marketing/LoginToBuyPanel";
 import { ProductRecommendations } from "@/components/plants/ProductRecommendations";
@@ -18,7 +19,7 @@ const LIGHT_LABEL: Record<string, string> = {
   alta: "Alta",
 };
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export async function generateStaticParams() {
   const slugs = await getAllPlantSlugs();
@@ -33,7 +34,7 @@ export default async function MarketingPlantDetailPage({
   const plant = await getPlantBySlug(params.slug);
   if (!plant) return notFound();
 
-  const isEpa = plant.id.startsWith("epa-");
+  const useContain = isCatalogProductId(plant.id);
   const [allPlanters, allAccessories] = await Promise.all([
     getPlantersFromDB(),
     getAccessoriesFromDB(),
@@ -58,13 +59,13 @@ export default async function MarketingPlantDetailPage({
         </Link>
 
         <div className="grid gap-10 lg:grid-cols-2">
-          <div className={`overflow-hidden rounded-xl2 shadow-card ${isEpa ? "bg-white" : ""}`}>
+          <div className={`overflow-hidden rounded-xl2 shadow-card ${useContain ? "bg-white" : ""}`}>
             <Image
               src={plant.images[0]}
               alt={plant.name}
               width={900}
               height={900}
-              className={`h-[420px] w-full ${isEpa ? "object-contain p-6" : "object-cover"}`}
+              className={`h-[420px] w-full ${useContain ? "object-contain p-6" : "object-cover"}`}
             />
           </div>
 

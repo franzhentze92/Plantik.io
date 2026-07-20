@@ -1,6 +1,7 @@
 import { Plant, Planter } from "@/types";
 import type { Accessory, AccessoryCategory, AccessoryIconKey } from "@/data/accessories";
 import { getCompatiblePlanters } from "@/lib/plant-planter-compat";
+import { isCatalogProductId } from "@/lib/catalog-ids";
 
 // Cross-sell recommendations shown on product detail pages. When you view one
 // product we suggest up to 4 of every *other* catalog category (e.g. viewing a
@@ -15,7 +16,8 @@ export type RelatedItem = {
   name: string;
   priceQ: number;
   image?: string;
-  isEpa: boolean;
+  /** True when product photos should use object-contain on white. */
+  useContain: boolean;
   swatch?: string;
   iconKey?: AccessoryIconKey;
 };
@@ -45,8 +47,6 @@ const ACCESSORY_GROUP_TITLE: Record<AccessoryCategory, string> = {
   mulch: "Cubiertas para maceta",
 };
 
-const isEpaId = (id: string) => id.startsWith("epa-");
-
 function plantHref(mode: RelatedMode, p: Plant): string {
   return mode === "marketing"
     ? `/productos/plantas/${p.slug}`
@@ -73,7 +73,7 @@ function plantToItem(mode: RelatedMode, p: Plant): RelatedItem {
     name: p.name,
     priceQ: p.basePriceQ,
     image: p.images[0],
-    isEpa: isEpaId(p.id),
+    useContain: isCatalogProductId(p.id),
   };
 }
 
@@ -85,7 +85,7 @@ function planterToItem(mode: RelatedMode, p: Planter): RelatedItem {
     name: p.name,
     priceQ: p.priceQ,
     image: p.image,
-    isEpa: isEpaId(p.id),
+    useContain: isCatalogProductId(p.id),
   };
 }
 
@@ -97,7 +97,7 @@ function accessoryToItem(mode: RelatedMode, a: Accessory): RelatedItem {
     name: a.name,
     priceQ: a.priceQ,
     image: a.image,
-    isEpa: isEpaId(a.id),
+    useContain: isCatalogProductId(a.id),
     swatch: a.swatch,
     iconKey: a.iconKey,
   };

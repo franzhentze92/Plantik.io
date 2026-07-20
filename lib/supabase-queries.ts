@@ -1,13 +1,19 @@
 import { supabase } from "./supabase";
 import { Plant, Planter } from "@/types";
 import type { Accessory, AccessoryCategory } from "@/data/accessories";
+import {
+  CATALOG_ID_PREFIX,
+  catalogStyleLabel,
+  isCatalogProductId,
+  stripCatalogIdPrefix,
+} from "@/lib/catalog-ids";
 
 const PLANT_PLACEHOLDER_IMAGE = "/images/plant-placeholder.svg";
 
 // Below this many units in stock a product is flagged as "few units left".
 const LOW_STOCK_THRESHOLD = 5;
 
-/** Strip EPA pickup-only disclaimers from product titles and descriptions. */
+/** Strip source-vendor pickup-only disclaimers from product titles and descriptions. */
 function cleanCatalogText(text: string): string {
   return text
     .replace(/\s*\([^)]*[Rr]etiro en [Tt]ienda\)\s*/g, " ")
@@ -106,11 +112,10 @@ function mapPlantRow(p: any): Plant {
   };
 }
 
-// ─────────────────── EPA imported catalog → Plant mapping ───────────────────
-const EPA_CATALOG_PREFIX = "epa-";
-const EPA_PLANT_CATEGORY = "plantas-naturales";
+// ─────────────────── Imported catalog → Plant mapping ───────────────────
+const IMPORTED_PLANT_CATEGORY = "plantas-naturales";
 
-const EPA_PLANT_SELECT = `
+const IMPORTED_PLANT_SELECT = `
   id,
   name,
   slug,
@@ -197,8 +202,8 @@ function mapEpaProductToPlant(p: any): Plant {
     description.length > 140 ? `${description.slice(0, 137)}...` : description;
 
   return {
-    id: `${EPA_CATALOG_PREFIX}${p.id}`,
-    slug: `${EPA_CATALOG_PREFIX}${p.slug}`,
+    id: `${CATALOG_ID_PREFIX}${p.id}`,
+    slug: `${CATALOG_ID_PREFIX}${p.slug}`,
     name: cleanCatalogName(p.name),
     scientificName: epaScientificName(attrs),
     shortDescription,
@@ -217,7 +222,7 @@ function mapEpaProductToPlant(p: any): Plant {
     smartCareCompatible: false,
     stock: p.availability === "in_stock" ? "disponible" : "agotado",
     stockQuantity: p.availability === "in_stock" ? 10 : 0,
-    tags: ["epa", "plantas-naturales"],
+    tags: ["plantas-naturales"],
     images: images.length > 0 ? images : [PLANT_PLACEHOLDER_IMAGE],
   };
 }
@@ -225,15 +230,15 @@ function mapEpaProductToPlant(p: any): Plant {
 async function getEpaPlantRow(filter: { id?: string; slug?: string }) {
   let query = supabase
     .from("epa_products")
-    .select(EPA_PLANT_SELECT)
-    .eq("category", EPA_PLANT_CATEGORY);
+    .select(IMPORTED_PLANT_SELECT)
+    .eq("category", IMPORTED_PLANT_CATEGORY);
 
   if (filter.id) query = query.eq("id", filter.id);
   if (filter.slug) query = query.eq("slug", filter.slug);
 
   const { data, error } = await query.maybeSingle();
   if (error) {
-    console.error("Error fetching EPA plant:", error);
+    console.error("Error fetching catalog plant:", error);
     return null;
   }
   return data;
@@ -242,13 +247,13 @@ async function getEpaPlantRow(filter: { id?: string; slug?: string }) {
 async function getEpaPlants(): Promise<Plant[]> {
   const { data, error } = await supabase
     .from("epa_products")
-    .select(EPA_PLANT_SELECT)
-    .eq("category", EPA_PLANT_CATEGORY)
+    .select(IMPORTED_PLANT_SELECT)
+    .eq("category", IMPORTED_PLANT_CATEGORY)
     .eq("availability", "in_stock")
     .order("name");
 
   if (error) {
-    console.error("Error fetching EPA plants:", error);
+    console.error("Error fetching catalog plants:", error);
     return [];
   }
 
@@ -292,7 +297,7 @@ export async function getAllPlantSlugs(): Promise<string[]> {
     supabase
       .from("epa_products")
       .select("slug")
-      .eq("category", EPA_PLANT_CATEGORY)
+      .eq("category", IMPORTED_PLANT_CATEGORY)
       .eq("availability", "in_stock"),
   ]);
 
@@ -300,23 +305,23 @@ export async function getAllPlantSlugs(): Promise<string[]> {
     console.error("Error fetching plant slugs:", curatedResult.error);
   }
   if (epaResult.error) {
-    console.error("Error fetching EPA plant slugs:", epaResult.error);
+    console.error("Error fetching catalog plant slugs:", epaResult.error);
   }
 
   const curated = (curatedResult.data || [])
     .map((row: { slug: string }) => row.slug)
     .filter(Boolean);
   const epa = (epaResult.data || [])
-    .map((row: { slug: string }) => `${EPA_CATALOG_PREFIX}${row.slug}`)
+    .map((row: { slug: string }) => `${CATALOG_ID_PREFIX}${row.slug}`)
     .filter(Boolean);
 
   return [...curated, ...epa];
 }
 
 export async function getPlantById(id: string): Promise<Plant | null> {
-  if (id.startsWith(EPA_CATALOG_PREFIX)) {
-    const epaId = id.slice(EPA_CATALOG_PREFIX.length);
-    const data = await getEpaPlantRow({ id: epaId });
+  if (isCatalogProductId(id)) {
+    const catalogId = stripCatalogIdPrefix(id);
+    const data = await getEpaPlantRow({ id: catalogId });
     return data ? mapEpaProductToPlant(data) : null;
   }
 
@@ -339,9 +344,9 @@ export async function getPlantById(id: string): Promise<Plant | null> {
 }
 
 export async function getPlantBySlug(slug: string): Promise<Plant | null> {
-  if (slug.startsWith(EPA_CATALOG_PREFIX)) {
-    const epaSlug = slug.slice(EPA_CATALOG_PREFIX.length);
-    const data = await getEpaPlantRow({ slug: epaSlug });
+  if (isCatalogProductId(slug)) {
+    const catalogSlug = stripCatalogIdPrefix(slug);
+    const data = await getEpaPlantRow({ slug: catalogSlug });
     return data ? mapEpaProductToPlant(data) : null;
   }
 
@@ -432,14 +437,10 @@ function mapPlanterRow(p: any): Planter {
   };
 }
 
-// ─────────────────── EPA imported catalog → Planter mapping ───────────────────
-// Products scraped from EPA live in `epa_products`. We surface them in the
-// marketplace by mapping them onto the shared `Planter` shape. Their ids are
-// namespaced with `epa-` so detail routes can tell them apart from curated
-// planters and look them up in the right table.
-const EPA_PLANTER_ID_PREFIX = EPA_CATALOG_PREFIX;
+// ─────────────────── Imported catalog → Planter mapping ───────────────────
+// Public ids use a neutral `pk-` prefix so routes don't expose the source vendor.
 
-const EPA_PLANTER_SELECT =
+const IMPORTED_PLANTER_SELECT =
   "id, name, price_q, regular_price_q, on_sale, image_url, availability, attributes";
 
 function epaParseDiameterCm(attrs: Record<string, string>): number {
@@ -475,13 +476,13 @@ function mapEpaProductToPlanter(p: any): Planter {
   const image = p.image_url;
 
   return {
-    id: `${EPA_PLANTER_ID_PREFIX}${p.id}`,
+    id: `${CATALOG_ID_PREFIX}${p.id}`,
     name: cleanCatalogName(p.name),
     material: attrs["Material"] || "Plástico",
     color,
     size: epaTalla(diameterCm),
     diameterCm,
-    style: attrs["Colección"] || attrs["Diseño"] || "EPA",
+    style: catalogStyleLabel(attrs["Colección"], attrs["Diseño"]),
     priceQ: Number(p.price_q),
     drainage: true,
     placement: epaPlacement(attrs),
@@ -493,13 +494,13 @@ function mapEpaProductToPlanter(p: any): Planter {
 async function getEpaPlanters(): Promise<Planter[]> {
   const { data, error } = await supabase
     .from("epa_products")
-    .select(EPA_PLANTER_SELECT)
+    .select(IMPORTED_PLANTER_SELECT)
     .eq("category", "macetas")
     .eq("availability", "in_stock")
     .order("name");
 
   if (error) {
-    console.error("Error fetching EPA planters:", error);
+    console.error("Error fetching catalog planters:", error);
     return [];
   }
 
@@ -536,16 +537,16 @@ export function getPlantersCached(): Promise<Planter[]> {
 }
 
 export async function getPlanterById(id: string): Promise<Planter | null> {
-  if (id.startsWith(EPA_PLANTER_ID_PREFIX)) {
-    const epaId = id.slice(EPA_PLANTER_ID_PREFIX.length);
+  if (isCatalogProductId(id)) {
+    const catalogId = stripCatalogIdPrefix(id);
     const { data, error } = await supabase
       .from("epa_products")
-      .select(EPA_PLANTER_SELECT)
-      .eq("id", epaId)
+      .select(IMPORTED_PLANTER_SELECT)
+      .eq("id", catalogId)
       .maybeSingle();
 
     if (error) {
-      console.error("Error fetching EPA planter:", error);
+      console.error("Error fetching catalog planter:", error);
       return null;
     }
 
@@ -586,9 +587,9 @@ function mapAccessoryRow(a: any): Accessory {
 // EPA listings: mulch (cubierta) inside "sustratos", and pot saucers ("platos")
 // inside "macetas". We pull those EPA categories here and classify each product
 // into our "sustrato", "mulch" or "plato" accessory category.
-const EPA_ACCESSORY_SOURCE_CATEGORIES = ["sustratos", "macetas"];
+const IMPORTED_ACCESSORY_SOURCE_CATEGORIES = ["sustratos", "macetas"];
 
-const EPA_ACCESSORY_SELECT = `
+const IMPORTED_ACCESSORY_SELECT = `
   id,
   name,
   category,
@@ -852,7 +853,7 @@ function mapEpaProductToAccessory(p: any): Accessory {
   const image = images[0] || p.image_url || undefined;
 
   return {
-    id: `${EPA_CATALOG_PREFIX}${p.id}`,
+    id: `${CATALOG_ID_PREFIX}${p.id}`,
     category,
     name: cleanCatalogName(p.name),
     description: cleanCatalogText(p.description || ""),
@@ -864,7 +865,7 @@ function mapEpaProductToAccessory(p: any): Accessory {
         : epaAccessoryIconKey(category, p.name, attrs),
     placement: epaAccessoryPlacement(attrs),
     attrs: accessoryAttrs,
-    tags: ["epa", p.category],
+    tags: [p.category].filter(Boolean),
     image,
   };
 }
@@ -872,12 +873,12 @@ function mapEpaProductToAccessory(p: any): Accessory {
 async function getEpaAccessoryRow(id: string) {
   const { data, error } = await supabase
     .from("epa_products")
-    .select(EPA_ACCESSORY_SELECT)
+    .select(IMPORTED_ACCESSORY_SELECT)
     .eq("id", id)
     .maybeSingle();
 
   if (error) {
-    console.error("Error fetching EPA accessory:", error);
+    console.error("Error fetching catalog accessory:", error);
     return null;
   }
   return data;
@@ -886,12 +887,12 @@ async function getEpaAccessoryRow(id: string) {
 async function getEpaAccessories(): Promise<Accessory[]> {
   const { data, error } = await supabase
     .from("epa_products")
-    .select(EPA_ACCESSORY_SELECT)
-    .in("category", EPA_ACCESSORY_SOURCE_CATEGORIES)
+    .select(IMPORTED_ACCESSORY_SELECT)
+    .in("category", IMPORTED_ACCESSORY_SOURCE_CATEGORIES)
     .order("name");
 
   if (error) {
-    console.error("Error fetching EPA accessories:", error);
+    console.error("Error fetching catalog accessories:", error);
     return [];
   }
 
@@ -942,9 +943,9 @@ export function getAccessoriesCached(): Promise<Accessory[]> {
 }
 
 export async function getAccessoryById(id: string): Promise<Accessory | null> {
-  if (id.startsWith(EPA_CATALOG_PREFIX)) {
-    const epaId = id.slice(EPA_CATALOG_PREFIX.length);
-    const data = await getEpaAccessoryRow(epaId);
+  if (isCatalogProductId(id)) {
+    const catalogId = stripCatalogIdPrefix(id);
+    const data = await getEpaAccessoryRow(catalogId);
     return data ? mapEpaProductToAccessory(data) : null;
   }
 

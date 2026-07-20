@@ -36,10 +36,15 @@ const LIGHT_META: Record<string, { icon: typeof Sun; label: string }> = {
   alta: { icon: Sun, label: "Luz alta" },
 };
 
-// EPA product photos sit on white backgrounds, so we contain them (like the
-// catalog) instead of cropping with object-cover.
-function isEpaImage(url?: string): boolean {
-  return Boolean(url && url.includes("gt.epaenlinea.com"));
+// Catalog studio photos sit on white backgrounds, so we contain them instead
+// of cropping with object-cover.
+function isStudioCatalogImage(url?: string): boolean {
+  return Boolean(
+    url &&
+      (url.includes("gt.epaenlinea.com") ||
+        url.includes("supabase") ||
+        url.includes("/storage/"))
+  );
 }
 
 export default function CreationDetailPage() {
@@ -438,7 +443,7 @@ function VariantRow({
             src={image}
             alt={title}
             fill
-            className={isEpaImage(image) ? "object-contain p-2" : "object-cover"}
+            className={isStudioCatalogImage(image) ? "object-contain p-2" : "object-cover"}
           />
         ) : (
           <span

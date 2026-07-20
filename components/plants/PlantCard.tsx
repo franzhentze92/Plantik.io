@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Bookmark, Leaf, Moon, Sun, SunMedium } from "lucide-react";
+import { isCatalogProductId } from "@/lib/catalog-ids";
 import { Plant } from "@/types";
 import { formatQ } from "@/lib/utils";
 import { useSavedStore } from "@/lib/store";
@@ -19,18 +20,18 @@ export function PlantCard({ plant }: { plant: Plant }) {
   const toggleSaved = useSavedStore((s) => s.toggle);
   const light = LIGHT_META[plant.light] ?? LIGHT_META.media;
   const LightIcon = light.icon;
-  const isEpa = plant.id.startsWith("epa-");
+  const useContain = isCatalogProductId(plant.id);
 
   return (
     <Link href={`/app/plantas/${plant.slug}`} className="card-surface group overflow-hidden">
       <div
-        className={`relative h-44 w-full overflow-hidden ${isEpa ? "bg-white" : ""}`}
+        className={`relative h-44 w-full overflow-hidden ${useContain ? "bg-white" : ""}`}
       >
         <Image
           src={plant.images[0]}
           alt={plant.name}
           fill
-          className={`${isEpa ? "object-contain p-3" : "object-cover"} transition-transform duration-300 group-hover:scale-105`}
+          className={`${useContain ? "object-contain p-3" : "object-cover"} transition-transform duration-300 group-hover:scale-105`}
         />
 
         {plant.stock === "pocas_unidades" && (

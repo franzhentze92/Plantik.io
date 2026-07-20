@@ -60,7 +60,11 @@ export function MarketingPlanterPreview({ planter }: { planter: Planter }) {
       </div>
 
       <div>
-        <span className="eyebrow">{planter.style}</span>
+        <span className="eyebrow">
+          {planter.style === "Estándar" || /^epa$/i.test(planter.style)
+            ? planter.material
+            : planter.style}
+        </span>
         <h1 className="mt-2 font-serif text-3xl text-brand-forest">
           {planter.name}
         </h1>

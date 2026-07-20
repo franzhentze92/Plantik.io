@@ -24,9 +24,9 @@ export function ProductRecommendations({ groups }: { groups: RelatedGroup[] }) {
 }
 
 function RecommendationCard({ item }: { item: RelatedItem }) {
-  // EPA product photos and accessory shots sit on white backgrounds, so we
-  // contain them (like the catalog). Curated lifestyle photos fill the frame.
-  const useContain = item.isEpa || item.kind === "accessory";
+  // Catalog studio photos and accessory shots sit on white backgrounds, so we
+  // contain them. Curated lifestyle photos fill the frame.
+  const useContain = item.useContain || item.kind === "accessory";
   const Icon = item.iconKey ? ACCESSORY_ICONS[item.iconKey] : null;
 
   return (

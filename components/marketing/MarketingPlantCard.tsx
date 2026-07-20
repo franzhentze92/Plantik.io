@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Leaf, Lock, Moon, Sun, SunMedium } from "lucide-react";
+import { isCatalogProductId } from "@/lib/catalog-ids";
 import { Plant } from "@/types";
 import { formatQ } from "@/lib/utils";
 
@@ -15,19 +16,19 @@ export function MarketingPlantCard({ plant }: { plant: Plant }) {
   const LightIcon = light.icon;
   const detailHref = `/productos/plantas/${plant.slug}`;
   const loginHref = `/login?next=${encodeURIComponent(`/app/plantas/${plant.slug}`)}`;
-  const isEpa = plant.id.startsWith("epa-");
+  const useContain = isCatalogProductId(plant.id);
 
   return (
     <article className="card-surface group flex flex-col overflow-hidden">
       <Link
         href={detailHref}
-        className={`relative block h-44 w-full overflow-hidden ${isEpa ? "bg-white" : ""}`}
+        className={`relative block h-44 w-full overflow-hidden ${useContain ? "bg-white" : ""}`}
       >
         <Image
           src={plant.images[0]}
           alt={plant.name}
           fill
-          className={`${isEpa ? "object-contain p-3" : "object-cover"} transition-transform duration-300 group-hover:scale-105`}
+          className={`${useContain ? "object-contain p-3" : "object-cover"} transition-transform duration-300 group-hover:scale-105`}
         />
 
         {plant.stock === "agotado" && (

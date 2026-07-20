@@ -47,7 +47,11 @@ export function MarketingPlanterCard({ planter }: { planter: Planter }) {
             <span className="text-sm font-semibold text-brand-forest">
               {formatQ(planter.priceQ)}
             </span>
-            <span className="text-[11px] text-brand-carbon/50">{planter.style}</span>
+            <span className="text-[11px] text-brand-carbon/50">
+              {planter.style === "Estándar" || /^epa$/i.test(planter.style)
+                ? planter.material
+                : planter.style}
+            </span>
           </div>
 
           <div className="mt-3 flex gap-2">
