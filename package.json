@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.111.0",
     "@hookform/resolvers": "3.9.0",
     "@supabase/supabase-js": "^2.110.2",
     "class-variance-authority": "0.7.0",
@@ -25,7 +24,7 @@
     "recharts": "2.12.7",
     "sharp": "^0.35.3",
     "tailwind-merge": "2.4.0",
-    "zod": "3.23.8",
+    "zod": "3.25.76",
     "zustand": "4.5.4"
   },
   "devDependencies": {
