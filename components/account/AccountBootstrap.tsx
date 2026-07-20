@@ -1,53 +1,96 @@
 "use client";
 
 import { useEffect } from "react";
-import { getOrCreateSessionId } from "@/lib/session";
-import { getProfileBySession, upsertProfile } from "@/lib/supabase/account";
-import { useProfileStore, useSettingsStore } from "@/lib/store";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import {
+  accountOwnerIdFromUserId,
+  getBrowserSessionId,
+} from "@/lib/session";
+import {
+  getProfileBySession,
+  migrateGuestAccountToUser,
+  upsertProfile,
+} from "@/lib/supabase/account";
+import { useAuthStore, useProfileStore, useSettingsStore } from "@/lib/store";
+
+async function syncAccount(user: User | null) {
+  const updateProfile = useProfileStore.getState().updateProfile;
+  const updateSettings = useSettingsStore.getState().updateSettings;
+  const login = useAuthStore.getState().login;
+
+  if (user) {
+    login(user.email ?? undefined);
+    const ownerId = accountOwnerIdFromUserId(user.id);
+    const guestId = getBrowserSessionId();
+
+    let remote = await migrateGuestAccountToUser(
+      guestId,
+      ownerId,
+      user.email
+    );
+
+    if (!remote) {
+      const local = useProfileStore.getState().profile;
+      remote = await upsertProfile(ownerId, {
+        name: local.name || "",
+        email: user.email || local.email || "",
+        phone: local.phone || "",
+        workspace: local.workspace || "Casa",
+        avatarUrl: local.avatarUrl,
+        settings: useSettingsStore.getState().settings,
+      });
+    }
+
+    updateProfile({
+      name: remote.name,
+      email: user.email || remote.email,
+      phone: remote.phone,
+      workspace: remote.workspace,
+      avatarUrl: remote.avatarUrl,
+    });
+    updateSettings(remote.settings);
+    return;
+  }
+
+  // Guest: keep using the browser session profile.
+  const guestId = getBrowserSessionId();
+  const remote = await getProfileBySession(guestId);
+  if (remote) {
+    updateProfile({
+      name: remote.name,
+      email: remote.email,
+      phone: remote.phone,
+      workspace: remote.workspace,
+      avatarUrl: remote.avatarUrl,
+    });
+    updateSettings(remote.settings);
+  }
+}
 
 export function AccountBootstrap() {
-  const updateProfile = useProfileStore((s) => s.updateProfile);
-  const updateSettings = useSettingsStore((s) => s.updateSettings);
-  const localProfile = useProfileStore((s) => s.profile);
-  const localSettings = useSettingsStore((s) => s.settings);
-
   useEffect(() => {
     let active = true;
 
-    async function sync() {
-      const sessionId = getOrCreateSessionId();
-      const remote = await getProfileBySession(sessionId);
-
-      if (!active) return;
-
-      if (remote) {
-        updateProfile({
-          name: remote.name,
-          email: remote.email,
-          phone: remote.phone,
-          workspace: remote.workspace,
-          avatarUrl: remote.avatarUrl,
-        });
-        updateSettings(remote.settings);
-      } else {
-        // Seed Supabase from local defaults on first visit.
-        try {
-          await upsertProfile(sessionId, {
-            ...localProfile,
-            settings: localSettings,
-          });
-        } catch (err) {
-          console.error("Error seeding profile:", err);
-        }
+    async function run(user: User | null) {
+      try {
+        if (!active) return;
+        await syncAccount(user);
+      } catch (err) {
+        console.error("Error syncing account:", err);
       }
     }
 
-    sync();
+    supabase.auth.getUser().then(({ data }) => run(data.user));
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      void run(session?.user ?? null);
+    });
+
     return () => {
       active = false;
+      sub.subscription.unsubscribe();
     };
-    // Run once on mount — local store is the seed source for first sync only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return null;

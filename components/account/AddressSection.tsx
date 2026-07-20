@@ -9,7 +9,7 @@ import {
   setDefaultAddress,
   type UserAddress,
 } from "@/lib/supabase/account";
-import { getOrCreateSessionId } from "@/lib/session";
+import { getAccountOwnerId } from "@/lib/session";
 import { SettingsCard, FormField } from "./AccountSections";
 
 const EMPTY = {
@@ -37,8 +37,8 @@ export function AddressSection({
     if (!form.line1.trim() || !form.city.trim()) return;
     setSaving(true);
     try {
-      const sessionId = getOrCreateSessionId();
-      const created = await addAddress(sessionId, {
+      const ownerId = await getAccountOwnerId();
+      const created = await addAddress(ownerId, {
         label: form.label.trim() || "Casa",
         line1: form.line1.trim(),
         line2: form.line2.trim() || null,
@@ -65,8 +65,8 @@ export function AddressSection({
   }
 
   async function handleSetDefault(id: string) {
-    const sessionId = getOrCreateSessionId();
-    await setDefaultAddress(sessionId, id);
+    const ownerId = await getAccountOwnerId();
+    await setDefaultAddress(ownerId, id);
     onChange(
       addresses
         .map((a) => ({ ...a, is_default: a.id === id }))

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope, DM_Serif_Display, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthBootstrap } from "@/components/account/AuthBootstrap";
+import { AccountBootstrap } from "@/components/account/AccountBootstrap";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -46,6 +47,7 @@ export default function RootLayout({
         className={`${manrope.variable} ${dmSerif.variable} ${spaceGrotesk.variable} ${plexMono.variable} font-sans`}
       >
         <AuthBootstrap />
+        <AccountBootstrap />
         {children}
       </body>
     </html>

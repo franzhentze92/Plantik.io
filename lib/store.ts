@@ -298,10 +298,10 @@ interface SettingsState {
 }
 
 const DEFAULT_PROFILE: UserProfile = {
-  name: "Franz Hentze",
-  email: "franz@nutri-tech.com.au",
+  name: "",
+  email: "",
   phone: "",
-  workspace: "Work",
+  workspace: "Casa",
   avatarUrl: null,
 };
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Leaf, Shield, SlidersHorizontal, User } from "lucide-react";
 import { track } from "@/lib/analytics";
-import { getOrCreateSessionId } from "@/lib/session";
+import { getAccountOwnerId } from "@/lib/session";
 import { upsertProfile } from "@/lib/supabase/account";
 import {
   AccountPageHeader,
@@ -28,8 +28,8 @@ export default function SettingsPage() {
     const next = { ...settings, ...patch };
     updateSettings(patch);
     try {
-      const sessionId = getOrCreateSessionId();
-      await upsertProfile(sessionId, { settings: next });
+      const ownerId = await getAccountOwnerId();
+      await upsertProfile(ownerId, { settings: next });
     } catch (err) {
       console.error("Error saving settings:", err);
     }

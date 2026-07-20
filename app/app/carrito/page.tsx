@@ -20,7 +20,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Confetti } from "@/components/ui/Confetti";
 import { track } from "@/lib/analytics";
-import { getOrCreateSessionId } from "@/lib/session";
+import { getAccountOwnerId } from "@/lib/session";
 import {
   formatAddressLine,
   getAddressesBySession,
@@ -77,10 +77,10 @@ export default function CartPage() {
     if (step !== "checkout" || checkoutPrefilled) return;
 
     async function prefillCheckout() {
-      const sessionId = getOrCreateSessionId();
+      const ownerId = await getAccountOwnerId();
       const [addresses, cards] = await Promise.all([
-        getAddressesBySession(sessionId),
-        getCardsBySession(sessionId),
+        getAddressesBySession(ownerId),
+        getCardsBySession(ownerId),
       ]);
       const defaultAddress =
         addresses.find((a) => a.is_default) ?? addresses[0];

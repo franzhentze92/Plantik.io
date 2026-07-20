@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, Settings } from "lucide-react";
 import { track } from "@/lib/analytics";
-import { getOrCreateSessionId } from "@/lib/session";
+import { getAccountOwnerId } from "@/lib/session";
 import {
   getAddressesBySession,
   getCardsBySession,
@@ -37,10 +37,10 @@ export default function ProfilePage() {
     track("page_view", { route: "/app/perfil" });
 
     async function load() {
-      const sessionId = getOrCreateSessionId();
+      const ownerId = await getAccountOwnerId();
       const [addrs, crds] = await Promise.all([
-        getAddressesBySession(sessionId),
-        getCardsBySession(sessionId),
+        getAddressesBySession(ownerId),
+        getCardsBySession(ownerId),
       ]);
       setAddresses(addrs);
       setCards(crds);
@@ -52,12 +52,33 @@ export default function ProfilePage() {
     setForm(profile);
   }, [profile]);
 
+  // Reload addresses/cards when auth-scoped profile sync finishes.
+  useEffect(() => {
+    let active = true;
+    async function reload() {
+      const ownerId = await getAccountOwnerId();
+      const [addrs, crds] = await Promise.all([
+        getAddressesBySession(ownerId),
+        getCardsBySession(ownerId),
+      ]);
+      if (!active) return;
+      setAddresses(addrs);
+      setCards(crds);
+    }
+    if (profile.email || profile.phone || profile.avatarUrl) {
+      void reload();
+    }
+    return () => {
+      active = false;
+    };
+  }, [profile.email, profile.phone, profile.avatarUrl]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      const sessionId = getOrCreateSessionId();
-      await upsertProfile(sessionId, {
+      const ownerId = await getAccountOwnerId();
+      await upsertProfile(ownerId, {
         name: form.name,
         email: form.email,
         phone: form.phone,

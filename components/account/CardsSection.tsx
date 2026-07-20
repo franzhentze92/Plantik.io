@@ -8,7 +8,7 @@ import {
   setDefaultCard,
   type UserPaymentCard,
 } from "@/lib/supabase/account";
-import { getOrCreateSessionId } from "@/lib/session";
+import { getAccountOwnerId } from "@/lib/session";
 import { SettingsCard, FormField } from "./AccountSections";
 
 const BRAND_LABEL: Record<string, string> = {
@@ -52,8 +52,8 @@ export function CardsSection({
     if (digits.length < 4 || !form.cardholder.trim()) return;
     setSaving(true);
     try {
-      const sessionId = getOrCreateSessionId();
-      const created = await addPaymentCard(sessionId, {
+      const ownerId = await getAccountOwnerId();
+      const created = await addPaymentCard(ownerId, {
         label: form.label.trim() || "Personal",
         brand: detectBrand(digits),
         last4: digits.slice(-4),
@@ -82,8 +82,8 @@ export function CardsSection({
   }
 
   async function handleSetDefault(id: string) {
-    const sessionId = getOrCreateSessionId();
-    await setDefaultCard(sessionId, id);
+    const ownerId = await getAccountOwnerId();
+    await setDefaultCard(ownerId, id);
     onChange(
       cards
         .map((c) => ({ ...c, is_default: c.id === id }))

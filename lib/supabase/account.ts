@@ -256,3 +256,88 @@ export function formatAddressLine(address: UserAddress): string {
   );
   return parts.join(", ");
 }
+
+function profileHasUserData(profile: DbUserProfile | null): boolean {
+  if (!profile) return false;
+  // Phone / avatar are the strongest signals of a real saved profile.
+  return Boolean(profile.phone?.trim() || profile.avatarUrl);
+}
+
+/**
+ * When a user signs in, copy guest (browser-session) profile/addresses/cards
+ * into their auth-scoped owner id if they don't already have richer data.
+ */
+export async function migrateGuestAccountToUser(
+  guestSessionId: string,
+  userOwnerId: string,
+  userEmail?: string | null
+): Promise<DbUserProfile | null> {
+  if (!guestSessionId || guestSessionId === userOwnerId) {
+    return getProfileBySession(userOwnerId);
+  }
+
+  const [userProfile, guestProfile] = await Promise.all([
+    getProfileBySession(userOwnerId),
+    getProfileBySession(guestSessionId),
+  ]);
+
+  const preferGuest = !profileHasUserData(userProfile) && profileHasUserData(guestProfile);
+
+  const merged = await upsertProfile(userOwnerId, {
+    name: preferGuest
+      ? guestProfile!.name
+      : userProfile?.name || guestProfile?.name || "",
+    email:
+      userEmail ||
+      userProfile?.email ||
+      guestProfile?.email ||
+      "",
+    phone: preferGuest
+      ? guestProfile!.phone
+      : userProfile?.phone || guestProfile?.phone || "",
+    workspace: preferGuest
+      ? guestProfile!.workspace
+      : userProfile?.workspace || guestProfile?.workspace || "Casa",
+    avatarUrl: preferGuest
+      ? guestProfile!.avatarUrl
+      : userProfile?.avatarUrl || guestProfile?.avatarUrl || null,
+    settings: userProfile?.settings || guestProfile?.settings || DEFAULT_SETTINGS,
+  });
+
+  const [userAddresses, guestAddresses, userCards, guestCards] =
+    await Promise.all([
+      getAddressesBySession(userOwnerId),
+      getAddressesBySession(guestSessionId),
+      getCardsBySession(userOwnerId),
+      getCardsBySession(guestSessionId),
+    ]);
+
+  if (userAddresses.length === 0 && guestAddresses.length > 0) {
+    for (const addr of guestAddresses) {
+      await addAddress(userOwnerId, {
+        label: addr.label,
+        line1: addr.line1,
+        line2: addr.line2,
+        city: addr.city,
+        zone: addr.zone,
+        is_default: addr.is_default,
+      });
+    }
+  }
+
+  if (userCards.length === 0 && guestCards.length > 0) {
+    for (const card of guestCards) {
+      await addPaymentCard(userOwnerId, {
+        label: card.label,
+        brand: card.brand,
+        last4: card.last4,
+        exp_month: card.exp_month,
+        exp_year: card.exp_year,
+        cardholder: card.cardholder,
+        is_default: card.is_default,
+      });
+    }
+  }
+
+  return merged;
+}
