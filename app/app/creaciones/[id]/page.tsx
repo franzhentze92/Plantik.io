@@ -28,6 +28,7 @@ import {
 import { Plant, Planter } from "@/types";
 import type { Accessory } from "@/data/accessories";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { CreationThumbnail } from "@/components/creations/CreationThumbnail";
 
 const LIGHT_META: Record<string, { icon: typeof Sun; label: string }> = {
   baja: { icon: Moon, label: "Luz baja" },
@@ -125,45 +126,47 @@ export default function CreationDetailPage() {
     if (!creation) return;
 
     const resolvedComponents: CreationComponent[] = hasResolved
-      ? [
-          plant && {
-            label: "Planta",
-            name: plant.name,
-            priceQ: plant.basePriceQ,
-            image: plant.images?.[0],
-            description: plant.shortDescription || plant.scientificName,
-          },
-          planter && {
-            label: "Maceta",
-            name: `${planter.name} (${planter.color})`,
-            priceQ: planter.priceQ,
-            image: planter.image,
-            description: [planter.material, planter.color]
-              .filter(Boolean)
-              .join(" · "),
-          },
-          saucer && {
-            label: "Plato",
-            name: saucer.name,
-            priceQ: saucer.priceQ,
-            image: saucer.image,
-            description: saucer.description,
-          },
-          soil && {
-            label: "Sustrato",
-            name: soil.name,
-            priceQ: soil.priceQ,
-            image: soil.image,
-            description: soil.description,
-          },
-          mulch && {
-            label: "Cubierta",
-            name: mulch.name,
-            priceQ: mulch.priceQ,
-            image: mulch.image,
-            description: mulch.description,
-          },
-        ].filter(Boolean as unknown as (v: unknown) => v is CreationComponent)
+      ? (
+          [
+            plant && {
+              label: "Planta",
+              name: plant.name,
+              priceQ: plant.basePriceQ,
+              image: plant.images?.[0],
+              description: plant.shortDescription || plant.scientificName,
+            },
+            planter && {
+              label: "Maceta",
+              name: `${planter.name} (${planter.color})`,
+              priceQ: planter.priceQ,
+              image: planter.image,
+              description: [planter.material, planter.color]
+                .filter(Boolean)
+                .join(" · "),
+            },
+            saucer && {
+              label: "Plato",
+              name: saucer.name,
+              priceQ: saucer.priceQ,
+              image: saucer.image,
+              description: saucer.description,
+            },
+            soil && {
+              label: "Sustrato",
+              name: soil.name,
+              priceQ: soil.priceQ,
+              image: soil.image,
+              description: soil.description,
+            },
+            mulch && {
+              label: "Cubierta",
+              name: mulch.name,
+              priceQ: mulch.priceQ,
+              image: mulch.image,
+              description: mulch.description,
+            },
+          ] as Array<CreationComponent | false | undefined>
+        ).filter((v): v is CreationComponent => Boolean(v))
       : creation.components;
 
     addToCart({
@@ -241,28 +244,26 @@ export default function CreationDetailPage() {
       <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr]">
         {/* Hero image */}
         <div className="relative overflow-hidden rounded-xl2 shadow-card">
-          <div
-            className={`relative flex h-96 items-center justify-center lg:h-[34rem] ${
-              isEpaImage(creation.image)
-                ? "bg-gradient-to-b from-brand-sage/45 via-brand-cream to-white"
-                : "bg-brand-cream"
-            }`}
-          >
-            <Leaf className="pointer-events-none absolute -left-8 -top-8 h-40 w-40 rotate-12 text-brand-moss/[0.06]" />
-            <Leaf className="pointer-events-none absolute -bottom-10 -right-8 h-44 w-44 -rotate-12 text-brand-moss/[0.06]" />
-            <Image
-              src={creation.image}
-              alt={creation.name}
-              fill
-              className={
-                isEpaImage(creation.image)
-                  ? "object-contain p-10"
-                  : "object-cover"
-              }
-              sizes="(max-width: 1024px) 100vw, 45vw"
-              priority
-            />
-          </div>
+          <CreationThumbnail
+            className="h-96 lg:h-[34rem]"
+            name={creation.name}
+            heroPadding="p-10"
+            fallbackImage={creation.image}
+            pieces={
+              hasResolved
+                ? [
+                    { label: "Planta", image: plant?.images?.[0] },
+                    { label: "Maceta", image: planter?.image },
+                    { label: "Plato", image: saucer?.image },
+                    { label: "Tierra", image: soil?.image },
+                    { label: "Mulch", image: mulch?.image },
+                  ]
+                : creation.components.map((c) => ({
+                    label: c.label,
+                    image: c.image,
+                  }))
+            }
+          />
         </div>
 
         {/* Details */}

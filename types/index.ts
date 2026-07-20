@@ -170,7 +170,9 @@ export type AnalyticsEventName =
   | "space_manual_placement_added"
   | "plant_recommendation_selected"
   | "proposal_created"
-  | "proposal_save_failed";
+  | "proposal_save_failed"
+  | "proposal_visualization_generated"
+  | "proposal_visualization_failed";
 
 export interface AnalyticsEvent {
   timestamp: string;
