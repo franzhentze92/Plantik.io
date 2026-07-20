@@ -138,9 +138,6 @@ export default async function MarketingHomePage() {
   const platoImage = accessories.find(
     (a) => a.category === "plato" && a.image
   )?.image;
-  const sustratoImage = accessories.find(
-    (a) => a.category === "sustrato" && a.image
-  )?.image;
   const mulchImage = accessories.find(
     (a) => a.category === "mulch" && a.image
   )?.image;
@@ -150,14 +147,16 @@ export default async function MarketingHomePage() {
       label: "Plantas",
       description: "Interior, exterior y pet friendly",
       href: "/productos?tab=plantas",
-      image: plants[0]?.images[0],
+      image:
+        "https://gt.epaenlinea.com/media/catalog/product/cache/200d1c1e4e9e1e0b76530de77567e779/8/e/8ed1b49e-7699-4f88-9e67-338147004601.jpg",
       icon: Sprout,
     },
     {
       label: "Macetas",
       description: "Por material, color y tamaño",
       href: "/productos?tab=macetas",
-      image: planters[0]?.image,
+      image:
+        "https://gt.epaenlinea.com/media/catalog/product/cache/200d1c1e4e9e1e0b76530de77567e779/0/0/00c794f8-a0ab-43dc-b753-1d7dd6abcb38.jpg",
       icon: Shapes,
     },
     {
@@ -171,7 +170,8 @@ export default async function MarketingHomePage() {
       label: "Sustratos",
       description: "La tierra ideal para cada especie",
       href: "/productos?tab=sustratos",
-      image: sustratoImage,
+      image:
+        "https://gt.epaenlinea.com/media/catalog/product/cache/200d1c1e4e9e1e0b76530de77567e779/a/f/af8403bd-2ece-479f-8c9c-6a60f4e8ee99.jpg",
       icon: Layers,
     },
     {
@@ -282,43 +282,40 @@ export default async function MarketingHomePage() {
               <Link
                 key={cat.label}
                 href={cat.href}
-                className="group relative flex h-64 flex-col justify-end overflow-hidden rounded-xl2 border border-brand-beige/70 shadow-soft"
+                className="group flex h-64 flex-col overflow-hidden rounded-xl2 border border-brand-beige/70 bg-white shadow-soft transition-shadow hover:shadow-card"
               >
-                {cat.image ? (
-                  <>
+                <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-white">
+                  {cat.image ? (
                     <Image
                       src={cat.image}
                       alt={cat.label}
                       fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                      className="object-contain p-4 transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-brand-carbon/85 via-brand-carbon/20 to-transparent" />
-                  </>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-brand-sage to-brand-cream">
+                  ) : (
                     <cat.icon className="h-16 w-16 text-brand-forest/30" />
+                  )}
+
+                  {/* Scanning effect */}
+                  <div className="pointer-events-none absolute inset-0">
+                    <div className="pointer-events-none absolute inset-x-0 animate-scan-line">
+                      <div className="h-10 w-full bg-gradient-to-b from-brand-forest/15 to-transparent" />
+                      <div className="h-px w-full bg-brand-forest/70 shadow-[0_0_10px_1px_rgba(45,74,54,0.55)]" />
+                    </div>
+                    <span className="absolute left-3 top-3 h-4 w-4 rounded-tl-md border-l-2 border-t-2 border-brand-forest/50" />
+                    <span className="absolute right-3 top-3 h-4 w-4 rounded-tr-md border-r-2 border-t-2 border-brand-forest/50" />
+                    <span className="absolute bottom-3 left-3 h-4 w-4 rounded-bl-md border-b-2 border-l-2 border-brand-forest/50" />
+                    <span className="absolute bottom-3 right-3 h-4 w-4 rounded-br-md border-b-2 border-r-2 border-brand-forest/50" />
                   </div>
-                )}
-                <div className="relative p-5">
-                  <h3
-                    className={`font-serif text-xl ${
-                      cat.image ? "text-white" : "text-brand-forest"
-                    }`}
-                  >
+                </div>
+                <div className="border-t border-brand-beige/60 bg-white p-4">
+                  <h3 className="font-serif text-xl text-brand-forest">
                     {cat.label}
                   </h3>
-                  <p
-                    className={`mt-0.5 text-xs ${
-                      cat.image ? "text-white/75" : "text-brand-carbon/55"
-                    }`}
-                  >
+                  <p className="mt-0.5 text-xs text-brand-carbon/55">
                     {cat.description}
                   </p>
-                  <span
-                    className={`mt-3 inline-flex items-center gap-1 text-xs font-semibold ${
-                      cat.image ? "text-white" : "text-brand-forest"
-                    }`}
-                  >
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand-forest">
                     Comprar
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                   </span>

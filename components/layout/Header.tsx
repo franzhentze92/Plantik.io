@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Leaf, Bell, Search, ChevronDown, Home } from "lucide-react";
+import { ShoppingCart, Leaf, Search, ChevronDown, Home } from "lucide-react";
 import {
   useCartStore,
   getProfileInitials,
@@ -78,15 +78,6 @@ export function Header() {
           <Home className="h-4 w-4" />
           <span className="hidden sm:inline">Inicio</span>
         </Link>
-
-        <button
-          type="button"
-          aria-label="Notificaciones"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-brand-beige bg-white text-brand-carbon/70 shadow-soft transition-colors hover:text-brand-forest"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-brand-terracotta" />
-        </button>
 
         <div className="relative hidden lg:block">
           <button

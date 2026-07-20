@@ -16,6 +16,7 @@ import { track } from "@/lib/analytics";
 import { groupSavedBySection, SAVED_SECTIONS } from "@/lib/saved-sections";
 import { ACCESSORY_ICONS } from "@/lib/accessory-icons";
 import { useCartStore, useCreationsStore, SavedPlant, useSavedStore } from "@/lib/store";
+import { CreationThumbnail } from "@/components/creations/CreationThumbnail";
 import {
   BookMarked,
   Copy,
@@ -39,12 +40,6 @@ const LIGHT_META: Record<string, { icon: typeof Sun; label: string }> = {
   media: { icon: SunMedium, label: "Luz media" },
   alta: { icon: Sun, label: "Luz alta" },
 };
-
-// EPA product photos sit on white backgrounds, so we contain them (like the
-// catalog) instead of cropping with object-cover.
-function isEpaImage(url?: string): boolean {
-  return Boolean(url && url.includes("gt.epaenlinea.com"));
-}
 
 export default function ProposalsPage() {
   const router = useRouter();
@@ -180,20 +175,14 @@ export default function ProposalsPage() {
                 </button>
 
                 <Link href={`/app/creaciones/${creation.id}`} className="block">
-                  <div
-                    className={`relative h-40 w-full overflow-hidden ${
-                      isEpaImage(creation.image) ? "bg-white" : "bg-brand-cream"
-                    }`}
-                  >
-                    <Image
-                      src={creation.image}
-                      alt={creation.name}
-                      fill
-                      className={`${
-                        isEpaImage(creation.image)
-                          ? "object-contain p-3"
-                          : "object-cover"
-                      } transition-transform duration-300 group-hover:scale-105`}
+                  <div className="relative h-40 w-full overflow-hidden">
+                    <CreationThumbnail
+                      className="h-full w-full transition-transform duration-300 group-hover:scale-105"
+                      fallbackImage={creation.image}
+                      pieces={creation.components.map((c) => ({
+                        label: c.label,
+                        image: c.image,
+                      }))}
                     />
                     <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-brand-forest/90 px-2.5 py-1 text-[10px] font-semibold text-white">
                       <Layers className="h-3 w-3" />

@@ -34,6 +34,7 @@ import {
 } from "@/data/build-components";
 import { Plant, Planter } from "@/types";
 import type { Accessory } from "@/data/accessories";
+import { CreationThumbnail } from "@/components/creations/CreationThumbnail";
 
 type StepKey = "saucer" | "planter" | "soil" | "mulch" | "plant";
 
@@ -198,15 +199,47 @@ export default function BuildPlantPage() {
   function buildComponents(): CreationComponent[] {
     const list: CreationComponent[] = [];
     if (selectedSaucer)
-      list.push({ label: "Plato", name: selectedSaucer.name, priceQ: selectedSaucer.priceQ });
+      list.push({
+        label: "Plato",
+        name: selectedSaucer.name,
+        priceQ: selectedSaucer.priceQ,
+        image: selectedSaucer.image,
+        description: selectedSaucer.description,
+      });
     if (selectedPlanter)
-      list.push({ label: "Maceta", name: `${selectedPlanter.name} · ${selectedPlanter.size}`, priceQ: selectedPlanter.priceQ });
+      list.push({
+        label: "Maceta",
+        name: `${selectedPlanter.name} · ${selectedPlanter.size}`,
+        priceQ: selectedPlanter.priceQ,
+        image: selectedPlanter.image,
+        description: [selectedPlanter.material, selectedPlanter.color]
+          .filter(Boolean)
+          .join(" · "),
+      });
     if (selectedSoil)
-      list.push({ label: "Tierra", name: selectedSoil.name, priceQ: selectedSoil.priceQ });
+      list.push({
+        label: "Tierra",
+        name: selectedSoil.name,
+        priceQ: selectedSoil.priceQ,
+        image: selectedSoil.image,
+        description: selectedSoil.description,
+      });
     if (selectedMulch)
-      list.push({ label: "Mulch", name: selectedMulch.name, priceQ: selectedMulch.priceQ });
+      list.push({
+        label: "Mulch",
+        name: selectedMulch.name,
+        priceQ: selectedMulch.priceQ,
+        image: selectedMulch.image,
+        description: selectedMulch.description,
+      });
     if (selectedPlant)
-      list.push({ label: "Planta", name: selectedPlant.name, priceQ: selectedPlant.basePriceQ });
+      list.push({
+        label: "Planta",
+        name: selectedPlant.name,
+        priceQ: selectedPlant.basePriceQ,
+        image: selectedPlant.images?.[0],
+        description: selectedPlant.scientificName,
+      });
     return list;
   }
 
@@ -493,18 +526,18 @@ export default function BuildPlantPage() {
         {/* Live summary */}
         <aside ref={summaryRef} className="min-w-0 scroll-mt-4 lg:sticky lg:top-24 lg:h-fit">
           <div className="card-surface overflow-hidden">
-            <div className="relative h-40 w-full bg-brand-cream">
-              <Image
-                src={creationImage()}
-                alt="Tu creación"
-                fill
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-              <span className="absolute bottom-3 left-4 right-4 truncate font-serif text-lg text-white">
-                {creationName()}
-              </span>
-            </div>
+            <CreationThumbnail
+              className="h-44 w-full"
+              name={creationName()}
+              showName
+              pieces={[
+                { label: "Planta", image: selectedPlant?.images?.[0] },
+                { label: "Maceta", image: selectedPlanter?.image },
+                { label: "Plato", image: selectedSaucer?.image },
+                { label: "Tierra", image: selectedSoil?.image },
+                { label: "Mulch", image: selectedMulch?.image },
+              ]}
+            />
 
             <div className="p-5">
               <h3 className="text-sm font-semibold text-brand-carbon">

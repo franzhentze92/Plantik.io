@@ -22,7 +22,6 @@ export const navItems = [
   { href: "/app/pedidos", label: "Mis pedidos", icon: Package },
   { href: "/app/carrito", label: "Carrito", icon: ShoppingCart },
   { href: "/app/perfil", label: "Mi perfil", icon: User },
-  { href: "/app/ajustes", label: "Ajustes", icon: Settings },
   { href: "/app/ayuda", label: "Ayuda", icon: HelpCircle },
 ];
 
@@ -75,7 +74,6 @@ export const mobileNavTabs: MobileNavTab[] = [
       { href: "/app/carrito", label: "Carrito", icon: ShoppingCart },
       { href: "/app/pedidos", label: "Mis pedidos", icon: Package },
       { href: "/app/perfil", label: "Mi perfil", icon: User },
-      { href: "/app/ajustes", label: "Ajustes", icon: Settings },
       { href: "/app/ayuda", label: "Ayuda", icon: HelpCircle },
     ],
     showLogout: true,

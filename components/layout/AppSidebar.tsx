@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Leaf, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,14 +32,10 @@ export function AppSidebar() {
               <Leaf className="relative h-5 w-5 text-white" />
             </span>
             <span className="min-w-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-              <Image
-                src="/plantik-no-background.png"
-                alt="Plantik"
-                width={548}
-                height={83}
-                className="h-6 w-auto"
-              />
-              <span className="mt-1.5 block whitespace-nowrap text-[11px] text-brand-carbon/50">
+              <span className="block whitespace-nowrap text-xl font-bold tracking-tight text-brand-forest">
+                PLANTIK
+              </span>
+              <span className="mt-1 block whitespace-nowrap text-[11px] text-brand-carbon/50">
                 Plantas. Diseño. Bienestar.
               </span>
             </span>

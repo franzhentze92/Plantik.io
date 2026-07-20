@@ -114,64 +114,63 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-start">
-        <div className="space-y-4">
-          {order.items.map((item) => (
-            <OrderItemCard key={item.id} item={item} />
-          ))}
+      {/* Resumen + datos de la compra arriba */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl2 border border-brand-beige bg-white p-6 shadow-soft">
+          <h2 className="font-semibold text-brand-forest">Resumen</h2>
+          <dl className="mt-4 space-y-2 text-sm">
+            <div className="flex justify-between text-brand-carbon/70">
+              <dt>Artículos ({itemCount})</dt>
+              <dd>{formatQ(subtotal)}</dd>
+            </div>
+            <div className="flex justify-between text-brand-carbon/70">
+              <dt>Envío</dt>
+              <dd>{shipping > 0 ? formatQ(shipping) : "Incluido"}</dd>
+            </div>
+            <div className="mt-2 flex justify-between border-t border-brand-beige pt-3 text-base font-semibold text-brand-forest">
+              <dt>Total</dt>
+              <dd className="font-serif text-xl">{formatQ(order.totalQ)}</dd>
+            </div>
+          </dl>
         </div>
 
-        <aside className="space-y-6 lg:sticky lg:top-6">
+        {(order.customerName || order.customerEmail) && (
           <div className="rounded-xl2 border border-brand-beige bg-white p-6 shadow-soft">
-            <h2 className="font-semibold text-brand-forest">Resumen</h2>
-            <dl className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between text-brand-carbon/70">
-                <dt>
-                  Artículos ({itemCount})
-                </dt>
-                <dd>{formatQ(subtotal)}</dd>
-              </div>
-              <div className="flex justify-between text-brand-carbon/70">
-                <dt>Envío</dt>
-                <dd>{shipping > 0 ? formatQ(shipping) : "Incluido"}</dd>
-              </div>
-              <div className="mt-2 flex justify-between border-t border-brand-beige pt-3 text-base font-semibold text-brand-forest">
-                <dt>Total</dt>
-                <dd className="font-serif text-xl">{formatQ(order.totalQ)}</dd>
-              </div>
+            <h2 className="font-semibold text-brand-forest">
+              Datos de la compra
+            </h2>
+            <dl className="mt-4 space-y-3 text-sm">
+              {order.customerName && (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
+                    Cliente
+                  </dt>
+                  <dd className="text-brand-carbon/80">{order.customerName}</dd>
+                </div>
+              )}
+              {order.customerEmail && (
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
+                    Confirmación enviada a
+                  </dt>
+                  <dd className="break-all text-brand-carbon/80">
+                    {order.customerEmail}
+                  </dd>
+                </div>
+              )}
             </dl>
           </div>
+        )}
+      </div>
 
-          {(order.customerName || order.customerEmail) && (
-            <div className="rounded-xl2 border border-brand-beige bg-white p-6 shadow-soft">
-              <h2 className="font-semibold text-brand-forest">
-                Datos de la compra
-              </h2>
-              <dl className="mt-4 space-y-3 text-sm">
-                {order.customerName && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
-                      Cliente
-                    </dt>
-                    <dd className="text-brand-carbon/80">
-                      {order.customerName}
-                    </dd>
-                  </div>
-                )}
-                {order.customerEmail && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
-                      Confirmación enviada a
-                    </dt>
-                    <dd className="break-all text-brand-carbon/80">
-                      {order.customerEmail}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-        </aside>
+      {/* Artículos a todo el ancho */}
+      <h2 className="mb-4 mt-8 font-serif text-xl text-brand-forest">
+        Artículos del pedido
+      </h2>
+      <div className="space-y-4">
+        {order.items.map((item) => (
+          <OrderItemCard key={item.id} item={item} />
+        ))}
       </div>
     </div>
   );
