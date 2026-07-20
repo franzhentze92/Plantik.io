@@ -58,6 +58,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // ---- helpers ------------------------------------------------------------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function cleanCatalogName(name = "") {
+  return name
+    .replace(/\s*\([^)]*[Rr]etiro en [Tt]ienda\)\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function decodeEntities(str = "") {
   return str
     .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
@@ -251,7 +258,9 @@ async function scrapeProduct(url) {
     product: {
       id: String(id),
       sku,
-      name: ld.name ? decodeEntities(ld.name) : slugFromUrl(url),
+      name: ld.name
+        ? cleanCatalogName(decodeEntities(ld.name))
+        : slugFromUrl(url),
       slug: slugFromUrl(url),
       url,
       description: ld.description ? decodeEntities(ld.description) : null,

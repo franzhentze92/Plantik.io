@@ -7,6 +7,14 @@ const PLANT_PLACEHOLDER_IMAGE = "/images/plant-placeholder.svg";
 // Below this many units in stock a product is flagged as "few units left".
 const LOW_STOCK_THRESHOLD = 5;
 
+/** Strip EPA pickup-only disclaimers from product titles. */
+function cleanCatalogName(name: string): string {
+  return name
+    .replace(/\s*\([^)]*[Rr]etiro en [Tt]ienda\)\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 const PLANT_SELECT = `
   id,
   slug,
@@ -181,7 +189,7 @@ function mapEpaProductToPlant(p: any): Plant {
   return {
     id: `${EPA_CATALOG_PREFIX}${p.id}`,
     slug: `${EPA_CATALOG_PREFIX}${p.slug}`,
-    name: p.name,
+    name: cleanCatalogName(p.name),
     scientificName: epaScientificName(attrs),
     shortDescription,
     description,
@@ -458,7 +466,7 @@ function mapEpaProductToPlanter(p: any): Planter {
 
   return {
     id: `${EPA_PLANTER_ID_PREFIX}${p.id}`,
-    name: p.name,
+    name: cleanCatalogName(p.name),
     material: attrs["Material"] || "Plástico",
     color,
     size: epaTalla(diameterCm),
@@ -836,7 +844,7 @@ function mapEpaProductToAccessory(p: any): Accessory {
   return {
     id: `${EPA_CATALOG_PREFIX}${p.id}`,
     category,
-    name: p.name,
+    name: cleanCatalogName(p.name),
     description: p.description || "",
     priceQ: Number(p.price_q),
     swatch,
