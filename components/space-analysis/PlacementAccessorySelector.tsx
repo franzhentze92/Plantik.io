@@ -36,11 +36,11 @@ export function PlacementAccessorySelector({
         <p className="mb-2 text-xs font-semibold uppercase text-brand-carbon/60">
           Maceta
         </p>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
           <button
             type="button"
             onClick={() => onChangePlanter(undefined)}
-            className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 text-center transition-colors ${
+            className={`flex min-w-0 w-full flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 text-center transition-colors ${
               !planterId
                 ? "border-brand-forest bg-brand-forest/5"
                 : "border-brand-beige bg-white hover:border-brand-forest/30"
@@ -59,7 +59,7 @@ export function PlacementAccessorySelector({
               type="button"
               onClick={() => onChangePlanter(planter.id)}
               title={`${planter.name} (${planter.color}) — ${formatQ(planter.priceQ)}`}
-              className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-colors ${
+              className={`flex min-w-0 w-full flex-col items-center gap-1 rounded-lg border-2 p-2 transition-colors ${
                 planterId === planter.id
                   ? "border-brand-forest bg-brand-forest/5"
                   : "border-brand-beige bg-white hover:border-brand-forest/30"
@@ -87,11 +87,11 @@ export function PlacementAccessorySelector({
           <p className="mb-2 text-xs font-semibold uppercase text-brand-carbon/60">
             Plato
           </p>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
             <button
               type="button"
               onClick={() => onChangePlato(undefined)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 text-center transition-colors ${
+              className={`flex min-w-0 w-full flex-col items-center justify-center gap-1 rounded-lg border-2 p-2 text-center transition-colors ${
                 !platoId
                   ? "border-brand-forest bg-brand-forest/5"
                   : "border-brand-beige bg-white hover:border-brand-forest/30"
@@ -110,7 +110,7 @@ export function PlacementAccessorySelector({
                 type="button"
                 onClick={() => onChangePlato(plato.id)}
                 title={`${plato.name} — ${formatQ(plato.priceQ)}`}
-                className={`flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-colors ${
+                className={`flex min-w-0 w-full flex-col items-center gap-1 rounded-lg border-2 p-2 transition-colors ${
                   platoId === plato.id
                     ? "border-brand-forest bg-brand-forest/5"
                     : "border-brand-beige bg-white hover:border-brand-forest/30"

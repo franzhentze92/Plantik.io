@@ -85,7 +85,7 @@ export function RecommendationPanel({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-3 [&>*]:min-w-0">
             {recommendations.map(({ plant, score }) => {
               const { positive, warnings } = getReasonsForScore(score);
               return (

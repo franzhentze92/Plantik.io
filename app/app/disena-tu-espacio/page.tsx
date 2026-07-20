@@ -834,8 +834,8 @@ export default function DesignSpacePage() {
             </div>
 
             {/* Derecha: recomendaciones (arriba) + propuesta (abajo) */}
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col overflow-hidden rounded-xl border border-brand-beige bg-white">
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="flex min-w-0 flex-col rounded-xl border border-brand-beige bg-white">
                 <div className="shrink-0 border-b border-brand-beige/60 px-5 py-3">
                   <h3 className="font-semibold text-brand-forest">
                     {selectedPlacementId &&
@@ -856,7 +856,7 @@ export default function DesignSpacePage() {
                         : "Elige una planta para esta ubicación"}
                   </p>
                 </div>
-                <div className="p-5">
+                <div className="min-w-0 p-5">
                   {!selectedPlacementId ? (
                     <div className="flex min-h-[12rem] flex-col items-center justify-center text-center lg:h-full">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-sage">
