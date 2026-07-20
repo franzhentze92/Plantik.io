@@ -17,7 +17,7 @@ import {
   getAccessoriesFromDB,
 } from "@/lib/supabase-queries";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export default async function ProductsPage() {
   const [plants, planters, accessories] = await Promise.all([
