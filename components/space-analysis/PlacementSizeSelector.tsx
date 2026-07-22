@@ -68,8 +68,8 @@ export function PlacementSizeSelector({
         </p>
       </div>
       <p className="mt-1 text-xs text-brand-carbon/60">
-        Elige qué tan grande quieres la planta para esta ubicación. Ajustamos las
-        recomendaciones al instante.
+        Define la escala en la visualización (y filtra recomendaciones). Vuelve a
+        generar la imagen para ver el cambio.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {sizeOptions.map((opt) => (

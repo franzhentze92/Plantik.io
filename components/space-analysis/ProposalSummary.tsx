@@ -190,7 +190,7 @@ export function ProposalSummary({
                 {isGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Generando visualización...
+                    Colocando plantas en tu foto...
                   </>
                 ) : (
                   <>

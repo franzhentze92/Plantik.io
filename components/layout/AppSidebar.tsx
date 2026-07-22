@@ -33,7 +33,7 @@ export function AppSidebar() {
             </span>
             <span className="min-w-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <span className="block whitespace-nowrap text-xl font-bold tracking-tight text-brand-forest">
-                PLANTIK
+                Plantik
               </span>
               <span className="mt-1 block whitespace-nowrap text-[11px] text-brand-carbon/50">
                 Plantas. Diseño. Bienestar.

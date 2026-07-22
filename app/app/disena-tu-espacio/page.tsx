@@ -10,9 +10,6 @@ import { SpacePhotoPreview } from "@/components/space-analysis/SpacePhotoPreview
 import { SpaceDesignDecoration } from "@/components/space-analysis/SpaceDesignDecoration";
 import { SpaceDesignFeatures } from "@/components/space-analysis/SpaceDesignFeatures";
 import { SpaceQuestionnaire } from "@/components/space-analysis/SpaceQuestionnaire";
-import { AnalysisProgress } from "@/components/space-analysis/AnalysisProgress";
-import { SpaceAnalyzingPreview } from "@/components/space-analysis/SpaceAnalyzingPreview";
-import { RoomAnalysisSummary } from "@/components/space-analysis/RoomAnalysisSummary";
 import { SpaceImageWithMarkers } from "@/components/space-analysis/SpaceImageWithMarkers";
 import { ManualPlacementEditor } from "@/components/space-analysis/ManualPlacementEditor";
 import { PlacementSizeSelector } from "@/components/space-analysis/PlacementSizeSelector";
@@ -29,7 +26,6 @@ import { Plant } from "@/types";
 import { PlantScore } from "@/lib/recommendations/plant-scoring";
 import { createProposal, updateProposal } from "@/lib/supabase/proposals";
 import { createSpace } from "@/lib/supabase/spaces";
-import { createSpaceImage } from "@/lib/supabase/space-images";
 import { createSpaceAnalysis } from "@/lib/supabase/space-analyses";
 import {
   getPlantersCached,
@@ -59,7 +55,22 @@ const manualReasoning = (type: PlacementLocation["placementType"]) =>
     hanging: "Colgante, en el punto que elegiste",
   })[type];
 
-type FlowState = "upload" | "questionnaire" | "analyzing" | "results";
+/** Local design context from the questionnaire — no AI room scan. */
+function buildManualAnalysis(data: SpaceQuestionnaireType): RoomAnalysis {
+  return {
+    roomType: data.roomType || "other",
+    lightLevel: data.directSun ? "bright" : "medium",
+    directSun: data.directSun ?? false,
+    estimatedSpaceSize: "medium",
+    styles: [],
+    dominantColors: [],
+    placements: [],
+    warnings: [],
+    confidence: 1,
+  };
+}
+
+type FlowState = "upload" | "questionnaire" | "results";
 
 interface PlacementRecommendations {
   [placementId: string]: Array<{ plant: Plant; score: PlantScore; reasons: string[]; warnings: string[] }>;
@@ -91,6 +102,7 @@ export default function DesignSpacePage() {
     null
   );
   const [isGeneratingViz, setIsGeneratingViz] = useState(false);
+  const [isPreparingSpace, setIsPreparingSpace] = useState(false);
   const [savedProposalId, setSavedProposalId] = useState<string | null>(null);
   const addToCart = useCartStore((s) => s.add);
   const visualizationRef = useRef<HTMLDivElement>(null);
@@ -629,65 +641,67 @@ export default function DesignSpacePage() {
       });
 
       setQuestionnaire(data);
-      setFlowState("analyzing");
+      setIsPreparingSpace(true);
       setError(null);
 
       try {
-        const base64 = imagePreviewUrl.split(",")[1];
-        const mimeType = selectedFile.type as "image/jpeg" | "image/png" | "image/webp";
+        // Keep any points the user already placed if they came back to edit answers.
+        const roomAnalysis: RoomAnalysis = {
+          ...buildManualAnalysis(data),
+          placements: analysis?.placements ?? [],
+        };
+        setAnalysis(roomAnalysis);
 
-        const response = await fetch("/api/analyze-space", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageBase64: base64,
-            imageMediaType: mimeType,
-            questionnaire: data,
-          }),
-        });
+        if (!spaceId || !analysisId) {
+          const sessionId = getOrCreateSessionId();
+          const space = await createSpace(sessionId, undefined, data.roomType);
+          setSpaceId(space.id);
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Análisis fallido");
+          const spaceAnalysis = await createSpaceAnalysis(
+            space.id,
+            null,
+            roomAnalysis
+          );
+          setAnalysisId(spaceAnalysis.id);
+
+          track("space_analysis_completed", {
+            confidence: roomAnalysis.confidence,
+            spaceId: space.id,
+          });
         }
 
-        const result = await response.json();
-        setAnalysis(result.analysis);
-
-        // Save to Supabase
-        const sessionId = getOrCreateSessionId();
-        const space = await createSpace(
-          sessionId,
-          undefined,
-          data.roomType
-        );
-        setSpaceId(space.id);
-
-        const spaceAnalysis = await createSpaceAnalysis(
-          space.id,
-          null,
-          result.analysis
-        );
-        setAnalysisId(spaceAnalysis.id);
-
+        setAddMode(roomAnalysis.placements.length === 0);
+        if (roomAnalysis.placements.length === 0) {
+          setSelectedPlacementId(null);
+        }
         setFlowState("results");
-        track("space_analysis_completed", {
-          confidence: result.analysis.confidence,
-          spaceId: space.id,
-        });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Error desconocido";
         setError(message);
         setFlowState("questionnaire");
         track("space_analysis_failed", { error: message });
+      } finally {
+        setIsPreparingSpace(false);
       }
     },
-    [selectedFile, imagePreviewUrl]
+    [selectedFile, imagePreviewUrl, analysis, spaceId, analysisId]
   );
 
   const handleChangePhoto = useCallback(() => {
     setSelectedFile(null);
     setImagePreviewUrl(null);
+    setQuestionnaire(null);
+    setAnalysis(null);
+    setSelectedPlacementId(null);
+    setPlacementRecommendations({});
+    setSelectedPlants([]);
+    setSpaceId(null);
+    setAnalysisId(null);
+    setGeneratedImageUrl(null);
+    setSavedProposalId(null);
+    setAddedToCart(false);
+    setAddMode(false);
+    setError(null);
     setFlowState("upload");
   }, []);
 
@@ -716,12 +730,13 @@ export default function DesignSpacePage() {
         }
       >
         <div
-          className={flowState === "analyzing" ? "mb-8" : "mb-4 shrink-0"}
+          className="mb-4 shrink-0"
         >
           <button
             type="button"
             onClick={() => {
               if (flowState === "questionnaire") handleChangePhoto();
+              else if (flowState === "results") setFlowState("questionnaire");
               else if (flowState !== "upload") router.back();
             }}
             className="flex items-center gap-2 text-sm font-semibold text-brand-forest hover:opacity-70"
@@ -750,8 +765,7 @@ export default function DesignSpacePage() {
           >
             {flowState === "upload" && "Sube una foto"}
             {flowState === "questionnaire" && "Cuéntanos sobre tu espacio"}
-            {flowState === "analyzing" && "Analizando..."}
-            {flowState === "results" && "Tus recomendaciones"}
+            {flowState === "results" && "Coloca tus plantas"}
           </h1>
 
           {flowState === "upload" && (
@@ -771,6 +785,13 @@ export default function DesignSpacePage() {
             <p className="mt-2 max-w-2xl text-sm text-brand-carbon/65">
               Responde las siguientes preguntas para que podamos recomendarte las
               plantas ideales para tu espacio.
+            </p>
+          )}
+
+          {flowState === "results" && (
+            <p className="mt-2 max-w-2xl text-sm text-brand-carbon/65">
+              Marca dónde quieres cada planta, elige maceta y plato, y genera tu
+              visualización.
             </p>
           )}
         </div>
@@ -794,29 +815,14 @@ export default function DesignSpacePage() {
             />
             <SpaceQuestionnaire
               onSubmit={handleQuestionnaireSubmit}
-              isLoading={false}
-            />
-          </div>
-        )}
-
-        {flowState === "analyzing" && (
-          <div className="mx-auto w-full max-w-2xl space-y-8">
-            {imagePreviewUrl && (
-              <SpaceAnalyzingPreview imageUrl={imagePreviewUrl} />
-            )}
-            <AnalysisProgress
-              steps={[
-                { id: "upload", label: "Fotografía cargada", status: "completed" },
-                { id: "analyze", label: "Analizando el espacio", status: "in-progress" },
-                { id: "recommend", label: "Buscando plantas", status: "pending" },
-              ]}
+              isLoading={isPreparingSpace}
             />
           </div>
         )}
 
         {flowState === "results" && analysis && (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-            {/* Izquierda: foto + análisis (sticky en escritorio) */}
+            {/* Izquierda: foto con puntos (sticky en escritorio) */}
             <div className="flex flex-col gap-3 lg:sticky lg:top-4 lg:self-start">
               <div className="lg:h-[60vh]">
                 <SpaceImageWithMarkers
@@ -837,12 +843,9 @@ export default function DesignSpacePage() {
                   }}
                 />
               </div>
-              <div className="shrink-0">
-                <RoomAnalysisSummary analysis={analysis} />
-              </div>
             </div>
 
-            {/* Derecha: recomendaciones (arriba) + propuesta (abajo) */}
+            {/* Derecha: catálogo (arriba) + propuesta (abajo) */}
             <div className="flex min-w-0 flex-col gap-4">
               <div className="flex min-w-0 flex-col rounded-xl border border-brand-beige bg-white">
                 <div className="shrink-0 border-b border-brand-beige/60 px-5 py-3">
@@ -853,11 +856,11 @@ export default function DesignSpacePage() {
                     ) &&
                     !plantPickerExpanded
                       ? "Personaliza tu planta"
-                      : "Recomendaciones"}
+                      : "Elige tu planta"}
                   </h3>
                   <p className="text-xs text-brand-carbon/60">
                     {!selectedPlacementId
-                      ? "Selecciona una ubicación en la foto"
+                      ? "Agrega un punto en la foto para empezar"
                       : selectedPlants.some(
                             (sp) => sp.placementId === selectedPlacementId
                           ) && !plantPickerExpanded
@@ -872,11 +875,11 @@ export default function DesignSpacePage() {
                         <Leaf className="h-5 w-5 text-brand-forest" />
                       </div>
                       <p className="mt-3 text-sm font-medium text-brand-forest">
-                        Toca un número en la foto
+                        Toca la foto para agregar un punto
                       </p>
                       <p className="mt-1 max-w-[16rem] text-xs text-brand-carbon/60">
-                        Cada punto es una ubicación sugerida, o usa “Agregar
-                        punto” para elegir tú dónde va una planta.
+                        Tú decides dónde va cada planta. Luego eliges planta,
+                        maceta y plato, y generas la visualización.
                       </p>
                     </div>
                   ) : (
@@ -935,6 +938,13 @@ export default function DesignSpacePage() {
                                 </button>
                               </div>
 
+                              <PlacementSizeSelector
+                                placement={sel}
+                                onUpdate={(patch) =>
+                                  handleUpdatePlacement(sel.id, patch)
+                                }
+                              />
+
                               <PlacementAccessorySelector
                                 plant={currentSelection.plant}
                                 planters={planters}
@@ -954,22 +964,13 @@ export default function DesignSpacePage() {
 
                         return (
                           <>
-                            {sel.source === "manual" ? (
-                              <ManualPlacementEditor
-                                placement={sel}
-                                onUpdate={(patch) =>
-                                  handleUpdatePlacement(sel.id, patch)
-                                }
-                                onRemove={() => handleRemovePlacement(sel.id)}
-                              />
-                            ) : (
-                              <PlacementSizeSelector
-                                placement={sel}
-                                onUpdate={(patch) =>
-                                  handleUpdatePlacement(sel.id, patch)
-                                }
-                              />
-                            )}
+                            <ManualPlacementEditor
+                              placement={sel}
+                              onUpdate={(patch) =>
+                                handleUpdatePlacement(sel.id, patch)
+                              }
+                              onRemove={() => handleRemovePlacement(sel.id)}
+                            />
 
                             {recommendationsLoading &&
                             !placementRecommendations[
@@ -980,7 +981,7 @@ export default function DesignSpacePage() {
                             ] ? (
                               <div className="py-8 text-center">
                                 <p className="text-sm text-brand-carbon/60">
-                                  Cargando recomendaciones...
+                                  Cargando plantas...
                                 </p>
                               </div>
                             ) : (
@@ -1019,15 +1020,15 @@ export default function DesignSpacePage() {
                       Así se vería tu espacio
                     </h3>
                     <p className="text-xs text-brand-carbon/60">
-                      Visualización generada con tus plantas y accesorios
+                      Planta, maceta y plato colocados en tu punto, a escala
                     </p>
                   </div>
-                  <div className="relative aspect-[4/3] w-full bg-brand-cream">
+                  <div className="w-full bg-brand-cream">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={generatedImageUrl}
                       alt="Visualización de tu espacio"
-                      className="h-full w-full object-cover"
+                      className="mx-auto h-auto max-h-[70vh] w-full object-contain"
                     />
                   </div>
                 </div>

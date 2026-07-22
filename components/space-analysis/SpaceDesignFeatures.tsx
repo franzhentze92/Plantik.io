@@ -1,20 +1,20 @@
-import { Brain, Eye, Leaf } from "lucide-react";
+import { Eye, Leaf, MapPin } from "lucide-react";
 
 const features = [
   {
-    icon: Brain,
-    title: "Análisis con IA",
-    description: "Detectamos luz, espacio y estilo.",
+    icon: MapPin,
+    title: "Elige los puntos",
+    description: "Marca dónde quieres cada planta.",
   },
   {
     icon: Leaf,
-    title: "Propuesta personalizada",
-    description: "Plantas y diseño hechos para ti.",
+    title: "Arma tu combinación",
+    description: "Planta, maceta y plato a tu gusto.",
   },
   {
     icon: Eye,
     title: "Visualiza tu espacio",
-    description: "Mira cómo lucirá antes de decidir.",
+    description: "La IA genera cómo lucirá tu foto.",
   },
 ];
 

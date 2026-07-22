@@ -52,6 +52,9 @@ export function PlacementAccessorySelector({
             <span className="text-[10px] font-medium text-brand-carbon/60">
               Ninguna
             </span>
+            <span className="text-[10px] font-semibold text-brand-forest">
+              {formatQ(0)}
+            </span>
           </button>
           {compatiblePlanters.map((planter) => (
             <button
@@ -76,6 +79,9 @@ export function PlacementAccessorySelector({
               </span>
               <span className="w-full truncate text-center text-[10px] font-medium text-brand-carbon/70">
                 {planter.color}
+              </span>
+              <span className="w-full truncate text-center text-[10px] font-semibold text-brand-forest">
+                {formatQ(planter.priceQ)}
               </span>
             </button>
           ))}
@@ -103,6 +109,9 @@ export function PlacementAccessorySelector({
               <span className="text-[10px] font-medium text-brand-carbon/60">
                 Ninguno
               </span>
+              <span className="text-[10px] font-semibold text-brand-forest">
+                {formatQ(0)}
+              </span>
             </button>
             {platos.map((plato) => (
               <button
@@ -127,6 +136,9 @@ export function PlacementAccessorySelector({
                 </span>
                 <span className="w-full truncate text-center text-[10px] font-medium text-brand-carbon/70">
                   {plato.attrs?.["Color"] || "Plato"}
+                </span>
+                <span className="w-full truncate text-center text-[10px] font-semibold text-brand-forest">
+                  {formatQ(plato.priceQ)}
                 </span>
               </button>
             ))}

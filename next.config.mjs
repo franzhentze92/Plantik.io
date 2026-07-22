@@ -7,6 +7,13 @@ const nextConfig = {
       { protocol: "https", hostname: "gt.epaenlinea.com" },
     ],
   },
+  experimental: {
+    serverComponentsExternalPackages: [
+      "@imgly/background-removal-node",
+      "onnxruntime-node",
+      "sharp",
+    ],
+  },
 };
 
 export default nextConfig;

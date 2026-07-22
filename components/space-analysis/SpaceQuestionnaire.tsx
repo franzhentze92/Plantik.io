@@ -169,11 +169,11 @@ export function SpaceQuestionnaire({
         className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-brand-forest px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-transform hover:-translate-y-0.5 disabled:opacity-50"
       >
         {isLoading ? (
-          "Analizando..."
+          "Preparando..."
         ) : (
           <>
             <Sparkles className="h-4 w-4" />
-            Analizar mi espacio
+            Continuar
           </>
         )}
       </button>

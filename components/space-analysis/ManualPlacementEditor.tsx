@@ -70,8 +70,8 @@ export function ManualPlacementEditor({
         </button>
       </div>
       <p className="mt-1 text-xs text-brand-carbon/60">
-        Ajusta el tipo y el tamaño para afinar las recomendaciones. Arrastra el
-        marcador en la foto para moverlo.
+        Ajusta el tipo y el tamaño de la visualización. Arrastra el marcador
+        en la foto para moverlo.
       </p>
 
       <div className="mt-3">

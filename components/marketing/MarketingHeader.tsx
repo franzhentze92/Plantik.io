@@ -65,7 +65,7 @@ export function MarketingHeader() {
                 light ? "text-brand-forest" : "text-white"
               )}
             >
-              PLANTIK
+              Plantik
             </span>
           </Link>
 

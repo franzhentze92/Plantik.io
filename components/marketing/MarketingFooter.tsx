@@ -69,7 +69,7 @@ export function MarketingFooter() {
                 light ? "text-brand-forest" : "text-white"
               )}
             >
-              PLANTIK
+              Plantik
             </span>
           </div>
           <p
