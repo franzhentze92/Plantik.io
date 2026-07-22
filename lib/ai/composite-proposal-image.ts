@@ -193,36 +193,20 @@ async function prepareCutout(
     .png()
     .toBuffer();
 
-  let cut: Buffer | null = null;
+  let cut: Buffer;
   try {
-    const { removeBackground } = await import(
-      "@imgly/background-removal-node"
-    );
-    const blob = await removeBackground(sized, {
-      model: "medium",
-      output: { format: "image/png", quality: 0.95 },
-    });
-    cut = Buffer.from(await blob.arrayBuffer());
-  } catch (err) {
-    console.warn("IMG.LY cutout unavailable, using studio flood-fill:", err);
+    cut = await removeStudioBackground(sized);
+  } catch {
+    cut = sized;
   }
 
-  if (!cut) {
-    try {
-      cut = await removeStudioBackground(sized);
-    } catch {
-      cut = sized;
-    }
-  }
-
-  const base = cut ?? sized;
   // Never run knockoutLightBackground on macetas/platos: ivory/beige/white
   // pots get erased as "studio white" and only dark shreds remain.
   let out: Buffer;
   if (opts?.isAccessory) {
-    out = await trimKeepTips(await trimTransparent(base));
+    out = await trimKeepTips(await trimTransparent(cut));
   } else {
-    const cleaned = await knockoutLightBackground(base);
+    const cleaned = await knockoutLightBackground(cut);
     out = await trimKeepTips(await trimTransparent(cleaned));
   }
   if (opts?.stripShadow) {

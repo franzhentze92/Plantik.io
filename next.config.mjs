@@ -8,11 +8,7 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverComponentsExternalPackages: [
-      "@imgly/background-removal-node",
-      "onnxruntime-node",
-      "sharp",
-    ],
+    serverComponentsExternalPackages: ["sharp"],
   },
 };
 
