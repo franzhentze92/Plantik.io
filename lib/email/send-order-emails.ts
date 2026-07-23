@@ -6,6 +6,11 @@ import {
 } from "@/lib/email/format";
 import { buildAdminOrderEmail } from "@/lib/email/templates/admin-order";
 import { buildCustomerOrderEmail } from "@/lib/email/templates/customer-order";
+import {
+  buildAdminStatusEmail,
+  buildCustomerStatusEmail,
+} from "@/lib/email/templates/status-update";
+import { normalizeOrderStatus } from "@/lib/order-display";
 
 export type SendOrderEmailsResult = {
   customerSent: boolean;
@@ -55,9 +60,11 @@ async function sendOne(args: {
   }
 }
 
-export async function sendOrderEmailsFromPayload(
-  order: OrderEmailPayload
-): Promise<SendOrderEmailsResult> {
+async function sendCustomerAndAdmin(args: {
+  payload: OrderEmailPayload;
+  customer: { subject: string; html: string; text: string };
+  admin: { subject: string; html: string; text: string };
+}): Promise<SendOrderEmailsResult> {
   const resend = getResendClient();
   if (!resend) {
     return {
@@ -68,8 +75,6 @@ export async function sendOrderEmailsFromPayload(
     };
   }
 
-  const customer = buildCustomerOrderEmail(order);
-  const admin = buildAdminOrderEmail(order);
   const adminEmail = getAdminEmail();
   const errors: string[] = [];
   let customerSent = false;
@@ -78,10 +83,10 @@ export async function sendOrderEmailsFromPayload(
   try {
     await sendOne({
       resend,
-      to: order.customerEmail,
-      subject: customer.subject,
-      html: customer.html,
-      text: customer.text,
+      to: args.payload.customerEmail,
+      subject: args.customer.subject,
+      html: args.customer.html,
+      text: args.customer.text,
       replyTo: "info@plantik.io",
     });
     customerSent = true;
@@ -95,10 +100,10 @@ export async function sendOrderEmailsFromPayload(
     await sendOne({
       resend,
       to: adminEmail,
-      subject: admin.subject,
-      html: admin.html,
-      text: admin.text,
-      replyTo: order.customerEmail,
+      subject: args.admin.subject,
+      html: args.admin.html,
+      text: args.admin.text,
+      replyTo: args.payload.customerEmail,
     });
     adminSent = true;
   } catch (error) {
@@ -108,6 +113,16 @@ export async function sendOrderEmailsFromPayload(
   }
 
   return { customerSent, adminSent, errors };
+}
+
+export async function sendOrderEmailsFromPayload(
+  order: OrderEmailPayload
+): Promise<SendOrderEmailsResult> {
+  return sendCustomerAndAdmin({
+    payload: order,
+    customer: buildCustomerOrderEmail(order),
+    admin: buildAdminOrderEmail(order),
+  });
 }
 
 export async function sendOrderEmails(
@@ -124,4 +139,42 @@ export async function sendOrderEmails(
   }
 
   return sendOrderEmailsFromPayload(payload);
+}
+
+export async function sendOrderStatusEmails(
+  order: OrderEmailInput,
+  previousStatus?: string
+): Promise<SendOrderEmailsResult> {
+  const payload = toOrderEmailPayload(order);
+  if (!payload) {
+    return {
+      customerSent: false,
+      adminSent: false,
+      skippedReason: "El pedido no tiene correo del cliente",
+      errors: [],
+    };
+  }
+
+  const previous = previousStatus
+    ? normalizeOrderStatus(previousStatus)
+    : undefined;
+  const next = normalizeOrderStatus(payload.status);
+
+  if (previous && previous === next) {
+    return {
+      customerSent: false,
+      adminSent: false,
+      skippedReason: "El estado no cambió",
+      errors: [],
+    };
+  }
+
+  return sendCustomerAndAdmin({
+    payload: { ...payload, status: next },
+    customer: buildCustomerStatusEmail(
+      { ...payload, status: next },
+      previous
+    ),
+    admin: buildAdminStatusEmail({ ...payload, status: next }, previous),
+  });
 }
