@@ -126,8 +126,8 @@ export default function CartPage() {
         totalQ: total,
         createdAt: new Date().toISOString(),
         status: "pagado",
-        customerName: form.name,
-        customerEmail: form.email,
+        customerName: form.name.trim(),
+        customerEmail: form.email.trim(),
       };
       addOrder(order);
       track("checkout_completed", { priceQ: total });
@@ -135,6 +135,21 @@ export default function CartPage() {
       clear();
       setIsPaying(false);
       setStep("success");
+
+      void fetch("/api/orders/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order: {
+            ...order,
+            subtotalQ: subtotal,
+            shippingQ: shipping,
+            customerAddress: form.address.trim(),
+          },
+        }),
+      }).catch((error) => {
+        console.error("Order email notify failed:", error);
+      });
     }, 1500);
   }
 
