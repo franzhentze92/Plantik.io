@@ -7,6 +7,7 @@ import {
   accountOwnerIdFromUserId,
   getBrowserSessionId,
 } from "@/lib/session";
+import { profileFromAuthMetadata } from "@/lib/auth-oauth";
 import {
   getProfileBySession,
   migrateGuestAccountToUser,
@@ -23,6 +24,9 @@ async function syncAccount(user: User | null) {
     login(user.email ?? undefined);
     const ownerId = accountOwnerIdFromUserId(user.id);
     const guestId = getBrowserSessionId();
+    const { name: oauthName, avatarUrl: oauthAvatar } = profileFromAuthMetadata(
+      user.user_metadata
+    );
 
     let remote = await migrateGuestAccountToUser(
       guestId,
@@ -33,12 +37,18 @@ async function syncAccount(user: User | null) {
     if (!remote) {
       const local = useProfileStore.getState().profile;
       remote = await upsertProfile(ownerId, {
-        name: local.name || "",
+        name: oauthName || local.name || "",
         email: user.email || local.email || "",
         phone: local.phone || "",
         workspace: local.workspace || "Casa",
-        avatarUrl: local.avatarUrl,
+        avatarUrl: oauthAvatar || local.avatarUrl,
         settings: useSettingsStore.getState().settings,
+      });
+    } else if (oauthName || oauthAvatar) {
+      remote = await upsertProfile(ownerId, {
+        name: remote.name?.trim() ? remote.name : oauthName,
+        email: user.email || remote.email,
+        avatarUrl: remote.avatarUrl || oauthAvatar,
       });
     }
 

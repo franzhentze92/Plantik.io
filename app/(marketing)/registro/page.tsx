@@ -16,13 +16,15 @@ import {
   AuthIconField,
   AuthPageLayout,
 } from "@/components/marketing/AuthPageLayout";
+import { AuthProviderDivider } from "@/components/auth/AuthProviderDivider";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useAuthStore, useProfileStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { authErrorMessage } from "@/lib/auth-errors";
 
 const SIGNUP_BENEFITS = [
   "Cuenta gratis — sin tarjeta para empezar",
-  "Diseña tu espacio con IA en menos de 2 minutos",
+  "Diseña tu espacio con Plantik en menos de 2 minutos",
   "Explora y compra del catálogo completo",
   "Guarda favoritos y propuestas para decidir con calma",
 ];
@@ -103,8 +105,11 @@ function SignupForm() {
       <AuthFormCard
         icon={Sparkles}
         title="Crea tu cuenta"
-        subtitle="Solo toma un minuto. Luego podrás comprar y guardar todo."
+        subtitle="Con Google en un clic, o con tu correo abajo. Sin verificación por email."
       >
+        <GoogleAuthButton nextPath={next} label="Registrarse con Google" />
+        <AuthProviderDivider label="o con correo" />
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <AuthIconField
             label="Nombre"

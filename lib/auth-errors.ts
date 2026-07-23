@@ -5,7 +5,10 @@ export function authErrorMessage(message: string): string {
     return "Correo o contraseña incorrectos.";
   }
   if (m.includes("email not confirmed")) {
-    return "Debes confirmar tu correo antes de iniciar sesión.";
+    return "Tu cuenta aún no está activa. Intenta iniciar sesión de nuevo.";
+  }
+  if (m.includes("oauth") || m.includes("provider")) {
+    return "No se pudo conectar con Google. Inténtalo de nuevo.";
   }
   if (m.includes("already registered") || m.includes("user already")) {
     return "Ya existe una cuenta con este correo. Inicia sesión.";

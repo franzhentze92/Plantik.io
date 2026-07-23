@@ -16,6 +16,8 @@ import {
   AuthIconField,
   AuthPageLayout,
 } from "@/components/marketing/AuthPageLayout";
+import { AuthProviderDivider } from "@/components/auth/AuthProviderDivider";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useAuthStore, useProfileStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -62,8 +64,11 @@ function LoginForm() {
       <AuthFormCard
         icon={Sprout}
         title="Bienvenido de vuelta"
-        subtitle="Ingresa con tu correo y contraseña."
+        subtitle="Ingresa con tu correo y contraseña, o usa Google."
       >
+        <GoogleAuthButton nextPath={next} label="Continuar con Google" />
+        <AuthProviderDivider label="o con correo" />
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <AuthIconField
             label="Correo"
