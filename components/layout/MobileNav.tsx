@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isAdminEmail } from "@/lib/admin";
 import { useAuthStore } from "@/lib/store";
 import { mobileNavTabs, type MobileNavTab } from "./nav-items";
 
@@ -13,6 +14,8 @@ export function MobileNav() {
   const router = useRouter();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const logout = useAuthStore((s) => s.logout);
+  const email = useAuthStore((s) => s.email);
+  const isAdmin = isAdminEmail(email);
 
   const isLinkActive = (href: string) =>
     href === "/app" ? pathname === "/app" : pathname.startsWith(href);
@@ -65,7 +68,9 @@ export function MobileNav() {
             <div key={tab.id} className="relative flex flex-1">
               {open && (
                 <div className="absolute bottom-full right-2 mb-2 w-56 overflow-hidden rounded-xl2 border border-brand-beige bg-white py-1 shadow-card">
-                  {tab.options.map((option) => {
+                  {tab.options
+                    .filter((option) => !option.adminOnly || isAdmin)
+                    .map((option) => {
                     const OptionIcon = option.icon;
                     const optActive = pathname.startsWith(option.href);
                     return (

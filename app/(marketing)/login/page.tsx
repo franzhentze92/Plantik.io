@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import { AuthProviderDivider } from "@/components/auth/AuthProviderDivider";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useAuthStore, useProfileStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
+import { resolvePostAuthPath } from "@/lib/auth-redirect";
 import { authErrorMessage } from "@/lib/auth-errors";
 
 function LoginForm() {
@@ -31,6 +32,13 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ email: "", password: "" });
+  const destination = resolvePostAuthPath(next);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.replace(destination);
+    });
+  }, [router, destination]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -47,13 +55,13 @@ function LoginForm() {
     }
     login(form.email.trim());
     if (form.email) updateProfile({ email: form.email.trim() });
-    const destination = next?.startsWith("/") ? next : "/app";
     router.push(destination);
   }
 
-  const registerHref = next
-    ? `/registro?next=${encodeURIComponent(next)}`
-    : "/registro";
+  const registerHref =
+    destination !== "/app"
+      ? `/registro?next=${encodeURIComponent(destination)}`
+      : "/registro";
 
   return (
     <AuthPageLayout
@@ -66,7 +74,7 @@ function LoginForm() {
         title="Bienvenido de vuelta"
         subtitle="Ingresa con tu correo y contraseña, o usa Google."
       >
-        <GoogleAuthButton nextPath={next} label="Continuar con Google" />
+        <GoogleAuthButton nextPath={destination} label="Continuar con Google" />
         <AuthProviderDivider label="o con correo" />
 
         <form onSubmit={handleSubmit} className="space-y-4">

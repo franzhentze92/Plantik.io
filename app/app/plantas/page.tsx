@@ -6,12 +6,12 @@ import { PlantCard } from "@/components/plants/PlantCard";
 import { PlanterCard } from "@/components/plants/PlanterCard";
 import { AccessoryCard } from "@/components/plants/AccessoryCard";
 import {
-  PlantFilterPanel,
-  PlanterFilterPanel,
-  AccessoryFilterPanel,
+  CatalogFilterSidebar,
+  CATALOG_TYPE_OPTIONS,
+  CatalogView,
 } from "@/components/plants/CatalogFilterPanel";
 import { CatalogHeroDecoration } from "@/components/plants/CatalogHeroDecoration";
-import { Leaf, X } from "lucide-react";
+import { Leaf, SlidersHorizontal, X } from "lucide-react";
 import { track } from "@/lib/analytics";
 import {
   countActivePlantFilters,
@@ -36,29 +36,24 @@ import {
   PlanterFilterState,
   AccessoryFilterState,
 } from "@/lib/catalog-filters";
-import { getPlantsCached, getPlantersCached, getAccessoriesCached, getAccessoriesByCategory } from "@/lib/supabase-queries";
+import {
+  getPlantsCached,
+  getPlantersCached,
+  getAccessoriesCached,
+  getAccessoriesByCategory,
+} from "@/lib/supabase-queries";
 import { Plant, Planter } from "@/types";
 import type { Accessory, AccessoryCategory } from "@/data/accessories";
 
-type CatalogTab = "plantas" | "macetas" | "platos" | "sustratos" | "mulch";
-
-const TABS: { id: CatalogTab; label: string }[] = [
-  { id: "plantas", label: "Plantas" },
-  { id: "macetas", label: "Macetas" },
-  { id: "platos", label: "Platos" },
-  { id: "sustratos", label: "Sustratos" },
-  { id: "mulch", label: "Mulch" },
-];
-
-const TAB_TO_CATEGORY: Partial<Record<CatalogTab, AccessoryCategory>> = {
+const VIEW_TO_CATEGORY: Partial<Record<CatalogView, AccessoryCategory>> = {
   platos: "plato",
   sustratos: "sustrato",
   mulch: "mulch",
 };
 
-function normalizeTab(value: string | null): CatalogTab {
-  const found = TABS.find((t) => t.id === value);
-  return found ? found.id : "plantas";
+function normalizeView(value: string | null): CatalogView {
+  const found = CATALOG_TYPE_OPTIONS.find((t) => t.id === value);
+  return found ? found.id : "todos";
 }
 
 export default function CatalogPage() {
@@ -72,11 +67,13 @@ export default function CatalogPage() {
 function CatalogPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = normalizeTab(searchParams.get("tab"));
+  const activeView = normalizeView(searchParams.get("tab"));
   const searchQuery = searchParams.get("q") ?? "";
-  const accessoryCategory = TAB_TO_CATEGORY[activeTab];
+  const accessoryCategory = VIEW_TO_CATEGORY[activeView];
 
-  const [plantFilters, setPlantFilters] = useState<PlantFilterState>(EMPTY_PLANT_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [plantFilters, setPlantFilters] =
+    useState<PlantFilterState>(EMPTY_PLANT_FILTERS);
   const [planterFilters, setPlanterFilters] = useState<PlanterFilterState>(
     EMPTY_PLANTER_FILTERS
   );
@@ -123,7 +120,8 @@ function CatalogPageContent() {
   );
 
   const filteredPlanters = useMemo(
-    () => searchPlantersByText(filterPlanters(planters, planterFilters), searchQuery),
+    () =>
+      searchPlantersByText(filterPlanters(planters, planterFilters), searchQuery),
     [planterFilters, planters, searchQuery]
   );
 
@@ -144,22 +142,64 @@ function CatalogPageContent() {
     [accessoryItems, accessoryFilters, searchQuery]
   );
 
+  const todosPlants = useMemo(
+    () => searchPlantsByText(plants, searchQuery),
+    [plants, searchQuery]
+  );
+  const todosPlanters = useMemo(
+    () => searchPlantersByText(planters, searchQuery),
+    [planters, searchQuery]
+  );
+  const todosAccessories = useMemo(
+    () => searchAccessoriesByText(accessories, searchQuery),
+    [accessories, searchQuery]
+  );
+
   const plantFilterCount = countActivePlantFilters(plantFilters);
   const planterFilterCount = countActivePlanterFilters(planterFilters);
   const accessoryFilterCount = countActiveAccessoryFilters(accessoryFilters);
   const hasQuery = searchQuery.trim().length > 0;
 
+  const counts: Record<CatalogView, number> = {
+    todos: plants.length + planters.length + accessories.length,
+    plantas: plants.length,
+    macetas: planters.length,
+    platos: getAccessoriesByCategory(accessories, "plato").length,
+    sustratos: getAccessoriesByCategory(accessories, "sustrato").length,
+    mulch: getAccessoriesByCategory(accessories, "mulch").length,
+  };
+
+  const totalShown =
+    activeView === "todos"
+      ? todosPlants.length + todosPlanters.length + todosAccessories.length
+      : activeView === "plantas"
+        ? filteredPlants.length
+        : activeView === "macetas"
+          ? filteredPlanters.length
+          : filteredAccessories.length;
+
+  const activeFilterCount =
+    activeView === "plantas"
+      ? plantFilterCount
+      : activeView === "macetas"
+        ? planterFilterCount
+        : accessoryCategory
+          ? accessoryFilterCount
+          : 0;
+
   function clearSearch() {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("q");
-    router.replace(`/app/plantas?${params.toString()}`);
+    const qs = params.toString();
+    router.replace(qs ? `/app/plantas?${qs}` : "/app/plantas");
   }
 
-  function setTab(tab: CatalogTab) {
+  function setView(view: CatalogView) {
     const params = new URLSearchParams();
-    params.set("tab", tab);
+    if (view !== "todos") params.set("tab", view);
     if (searchQuery) params.set("q", searchQuery);
-    router.replace(`/app/plantas?${params.toString()}`);
+    const qs = params.toString();
+    router.replace(qs ? `/app/plantas?${qs}` : "/app/plantas");
   }
 
   function updatePlantFilters(filters: PlantFilterState) {
@@ -175,35 +215,22 @@ function CatalogPageContent() {
   }
 
   function updateAccessoryFilters(filters: AccessoryFilterState) {
-    const params = accessoryFiltersToParams(filters, activeTab);
+    const params = accessoryFiltersToParams(filters, activeView);
     if (searchQuery) params.set("q", searchQuery);
     router.replace(`/app/plantas?${params.toString()}`);
   }
 
-  const descriptions: Record<CatalogTab, string> = {
-    plantas:
-      plantFilterCount > 0 || hasQuery
-        ? `${filteredPlants.length} de ${plants.length} especies coinciden con tu búsqueda.`
-        : `${filteredPlants.length} especies disponibles para tu espacio.`,
-    macetas:
-      planterFilterCount > 0 || hasQuery
-        ? `${filteredPlanters.length} de ${planters.length} macetas coinciden con tu búsqueda.`
-        : `${filteredPlanters.length} macetas para combinar con tus plantas.`,
-    platos:
-      accessoryFilterCount > 0 || hasQuery
-        ? `${filteredAccessories.length} de ${accessoryItems.length} platos coinciden con tu búsqueda.`
-        : `${filteredAccessories.length} platos maceteros para proteger tus superficies.`,
-    sustratos:
-      accessoryFilterCount > 0 || hasQuery
-        ? `${filteredAccessories.length} de ${accessoryItems.length} sustratos coinciden con tu búsqueda.`
-        : `${filteredAccessories.length} sustratos para cada tipo de planta.`,
-    mulch:
-      accessoryFilterCount > 0 || hasQuery
-        ? `${filteredAccessories.length} de ${accessoryItems.length} cubiertas coinciden con tu búsqueda.`
-        : `${filteredAccessories.length} cubiertas para tus macetas.`,
-  };
+  function clearAllFilters() {
+    if (activeView === "plantas") {
+      updatePlantFilters(EMPTY_PLANT_FILTERS);
+    } else if (activeView === "macetas") {
+      updatePlanterFilters(EMPTY_PLANTER_FILTERS);
+    } else if (accessoryCategory) {
+      updateAccessoryFilters(emptyAccessoryFilters(accessoryCategory));
+    }
+  }
 
-  if (loading && activeTab === "plantas") {
+  if (loading) {
     return (
       <div className="container-app py-10">
         <p className="text-brand-carbon/50">Cargando catálogo...</p>
@@ -225,7 +252,12 @@ function CatalogPageContent() {
           Explorar catálogo
         </h1>
         <p className="mt-2 text-sm text-brand-carbon/65">
-          {descriptions[activeTab]}
+          {totalShown} {totalShown === 1 ? "producto" : "productos"}
+          {hasQuery ? ` para “${searchQuery}”` : ""}
+          {activeView !== "todos"
+            ? ` en ${CATALOG_TYPE_OPTIONS.find((t) => t.id === activeView)?.label.toLowerCase()}`
+            : " disponibles"}
+          .
         </p>
 
         {hasQuery && (
@@ -240,113 +272,160 @@ function CatalogPageContent() {
         )}
       </div>
 
-      <div className="mt-6 flex gap-1 overflow-x-auto border-b border-brand-beige">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setTab(tab.id)}
-            className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
-              activeTab === tab.id
-                ? "border-brand-forest text-brand-forest"
-                : "border-transparent text-brand-carbon/55 hover:text-brand-forest"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <button
+        type="button"
+        onClick={() => setFiltersOpen((v) => !v)}
+        className="mt-6 inline-flex items-center gap-2 rounded-full border border-brand-beige bg-white px-4 py-2.5 text-sm font-semibold text-brand-forest shadow-soft lg:hidden"
+      >
+        <SlidersHorizontal className="h-4 w-4" />
+        Filtros y categorías
+        {activeFilterCount > 0 && (
+          <span className="rounded-full bg-brand-forest px-2 py-0.5 text-[10px] font-bold text-white">
+            {activeFilterCount}
+          </span>
+        )}
+      </button>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[260px_1fr] lg:items-start">
+        <aside
+          className={`${
+            filtersOpen ? "block" : "hidden"
+          } lg:block lg:sticky lg:top-24`}
+        >
+          <CatalogFilterSidebar
+            view={activeView}
+            counts={counts}
+            onViewChange={setView}
+            plantFilters={plantFilters}
+            planterFilters={planterFilters}
+            accessoryFilters={accessoryFilters}
+            accessoryCategory={accessoryCategory}
+            plantFilterCount={plantFilterCount}
+            planterFilterCount={planterFilterCount}
+            accessoryFilterCount={accessoryFilterCount}
+            onPlantFiltersChange={updatePlantFilters}
+            onPlanterFiltersChange={updatePlanterFilters}
+            onAccessoryFiltersChange={updateAccessoryFilters}
+            onClearFilters={clearAllFilters}
+          />
+        </aside>
+
+        <div>
+          {activeView === "todos" && (
+            <MixedGrid
+              plants={todosPlants}
+              planters={todosPlanters}
+              accessories={todosAccessories}
+              hasQuery={hasQuery}
+              searchQuery={searchQuery}
+            />
+          )}
+
+          {activeView === "plantas" &&
+            (filteredPlants.length === 0 ? (
+              <EmptyCatalogMessage
+                message={
+                  hasQuery
+                    ? `No encontramos plantas para “${searchQuery}”. Prueba otro término o ajusta los filtros.`
+                    : "No hay plantas que coincidan con los filtros seleccionados."
+                }
+              />
+            ) : (
+              <ProductGrid>
+                {filteredPlants.map((plant) => (
+                  <PlantCard key={plant.id} plant={plant} />
+                ))}
+              </ProductGrid>
+            ))}
+
+          {activeView === "macetas" &&
+            (filteredPlanters.length === 0 ? (
+              <EmptyCatalogMessage
+                message={
+                  hasQuery
+                    ? `No encontramos macetas para “${searchQuery}”. Prueba otro término o ajusta los filtros.`
+                    : "No hay macetas que coincidan con los filtros seleccionados."
+                }
+              />
+            ) : (
+              <ProductGrid>
+                {filteredPlanters.map((planter) => (
+                  <PlanterCard key={planter.id} planter={planter} />
+                ))}
+              </ProductGrid>
+            ))}
+
+          {accessoryCategory &&
+            (filteredAccessories.length === 0 ? (
+              <EmptyCatalogMessage
+                message={
+                  hasQuery
+                    ? `No encontramos resultados para “${searchQuery}”. Prueba otro término o ajusta los filtros.`
+                    : "No hay productos que coincidan con los filtros seleccionados."
+                }
+              />
+            ) : (
+              <ProductGrid>
+                {filteredAccessories.map((accessory) => (
+                  <AccessoryCard key={accessory.id} accessory={accessory} />
+                ))}
+              </ProductGrid>
+            ))}
+        </div>
       </div>
-
-      {activeTab === "plantas" && (
-        <>
-          <PlantFilterPanel
-            filters={plantFilters}
-            activeCount={plantFilterCount}
-            onChange={updatePlantFilters}
-            onClear={() => updatePlantFilters(EMPTY_PLANT_FILTERS)}
-          />
-
-          {filteredPlants.length === 0 ? (
-            <EmptyCatalogMessage
-              message={
-                hasQuery
-                  ? `No encontramos plantas para “${searchQuery}”. Prueba otro término o ajusta los filtros.`
-                  : "No hay plantas que coincidan con los filtros seleccionados."
-              }
-            />
-          ) : (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {filteredPlants.map((plant) => (
-                <PlantCard key={plant.id} plant={plant} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {activeTab === "macetas" && (
-        <>
-          <PlanterFilterPanel
-            filters={planterFilters}
-            activeCount={planterFilterCount}
-            onChange={updatePlanterFilters}
-            onClear={() => updatePlanterFilters(EMPTY_PLANTER_FILTERS)}
-          />
-
-          {filteredPlanters.length === 0 ? (
-            <EmptyCatalogMessage
-              message={
-                hasQuery
-                  ? `No encontramos macetas para “${searchQuery}”. Prueba otro término o ajusta los filtros.`
-                  : "No hay macetas que coincidan con los filtros seleccionados."
-              }
-            />
-          ) : (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredPlanters.map((planter) => (
-                <PlanterCard key={planter.id} planter={planter} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {accessoryCategory && (
-        <>
-          <AccessoryFilterPanel
-            category={accessoryCategory}
-            filters={accessoryFilters}
-            activeCount={accessoryFilterCount}
-            onChange={updateAccessoryFilters}
-            onClear={() =>
-              updateAccessoryFilters(emptyAccessoryFilters(accessoryCategory))
-            }
-          />
-
-          {filteredAccessories.length === 0 ? (
-            <EmptyCatalogMessage
-              message={
-                hasQuery
-                  ? `No encontramos resultados para “${searchQuery}”. Prueba otro término o ajusta los filtros.`
-                  : "No hay productos que coincidan con los filtros seleccionados."
-              }
-            />
-          ) : (
-            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {filteredAccessories.map((accessory) => (
-                <AccessoryCard key={accessory.id} accessory={accessory} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
     </div>
+  );
+}
+
+function MixedGrid({
+  plants,
+  planters,
+  accessories,
+  hasQuery,
+  searchQuery,
+}: {
+  plants: Plant[];
+  planters: Planter[];
+  accessories: Accessory[];
+  hasQuery: boolean;
+  searchQuery: string;
+}) {
+  const total = plants.length + planters.length + accessories.length;
+  if (total === 0) {
+    return (
+      <EmptyCatalogMessage
+        message={
+          hasQuery
+            ? `No encontramos productos para “${searchQuery}”. Prueba con otro término.`
+            : "No hay productos disponibles por ahora."
+        }
+      />
+    );
+  }
+  return (
+    <ProductGrid>
+      {plants.map((plant) => (
+        <PlantCard key={`plant-${plant.id}`} plant={plant} />
+      ))}
+      {planters.map((planter) => (
+        <PlanterCard key={`planter-${planter.id}`} planter={planter} />
+      ))}
+      {accessories.map((accessory) => (
+        <AccessoryCard key={`accessory-${accessory.id}`} accessory={accessory} />
+      ))}
+    </ProductGrid>
+  );
+}
+
+function ProductGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
   );
 }
 
 function EmptyCatalogMessage({ message }: { message: string }) {
   return (
-    <div className="mt-8 rounded-lg border border-brand-beige bg-brand-cream/50 p-8 text-center">
+    <div className="rounded-xl2 border border-brand-beige bg-white p-10 text-center shadow-soft">
       <p className="text-sm text-brand-carbon/65">{message}</p>
     </div>
   );

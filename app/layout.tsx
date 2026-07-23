@@ -31,7 +31,7 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Plantik — Plantas. Diseño. Bienestar.",
+  title: "Plantik",
   description:
     "Diseña, arma y cuida la planta perfecta para tu espacio con Plantik.",
 };

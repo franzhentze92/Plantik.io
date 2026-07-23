@@ -14,7 +14,7 @@ const features = [
   {
     icon: Eye,
     title: "Visualiza tu espacio",
-    description: "La IA genera cómo lucirá tu foto.",
+    description: "Plantik genera cómo lucirá tu foto.",
   },
 ];
 

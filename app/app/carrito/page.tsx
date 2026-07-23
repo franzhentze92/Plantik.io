@@ -20,7 +20,15 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Confetti } from "@/components/ui/Confetti";
 import { track } from "@/lib/analytics";
+import {
+  calculateShippingQ,
+  CHECKOUT_FREE_SHIPPING_THRESHOLD_Q,
+  PENDING_CHECKOUT_STORAGE_KEY,
+  type PendingCheckoutOrder,
+} from "@/lib/checkout-order";
+import { persistCheckoutOrder } from "@/lib/persist-order";
 import { getAccountOwnerId } from "@/lib/session";
+import { supabase } from "@/lib/supabase";
 import {
   formatAddressLine,
   getAddressesBySession,
@@ -31,8 +39,6 @@ import { formatQ } from "@/lib/utils";
 import { Order, useCartStore, useOrdersStore, useProfileStore } from "@/lib/store";
 
 type Step = "cart" | "checkout" | "success";
-
-const SHIPPING_Q = 35;
 
 const CARD_BRAND_LABEL: Record<string, string> = {
   visa: "Visa",
@@ -54,6 +60,7 @@ export default function CartPage() {
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("cart");
   const [isPaying, setIsPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [form, setForm] = useState({ name: "", email: "", address: "" });
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -67,11 +74,114 @@ export default function CartPage() {
   const remove = useCartStore((s) => s.remove);
   const clear = useCartStore((s) => s.clear);
   const addOrder = useOrdersStore((s) => s.addOrder);
+  const setOrders = useOrdersStore((s) => s.setOrders);
 
   useEffect(() => {
     setMounted(true);
     track("page_view", { route: "/app/carrito" });
   }, []);
+
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const orderId = params.get("order");
+    if (payment !== "success" || !orderId) return;
+
+    let active = true;
+
+    async function finalizeRecurrenteReturn() {
+      setIsPaying(true);
+      setPayError(null);
+
+      try {
+        const raw = localStorage.getItem(PENDING_CHECKOUT_STORAGE_KEY);
+        const pending = raw
+          ? (JSON.parse(raw) as PendingCheckoutOrder)
+          : null;
+
+        if (!pending || pending.orderId !== orderId) {
+          throw new Error(
+            "No encontramos los datos del pago. Revisa Mis pedidos o contacta soporte."
+          );
+        }
+
+        const res = await fetch("/api/checkout/recurrente/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            checkoutId: pending.checkoutId,
+            orderId: pending.orderId,
+          }),
+        });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(body.error ?? "No se pudo verificar el pago.");
+        }
+
+        const verify = (await res.json()) as { paid: boolean; orderId: string | null };
+
+        if (!verify.paid) {
+          throw new Error("El pago aún no está confirmado. Intenta de nuevo en unos segundos.");
+        }
+
+        const ownerId = await getAccountOwnerId();
+        const { getOrdersBySessionId } = await import("@/lib/supabase/orders");
+        const orders = await getOrdersBySessionId(ownerId);
+        const order =
+          orders.find((o) => o.id === pending.orderId) ??
+          ({
+            id: pending.orderId,
+            items: pending.items.map((i) => ({
+              id: i.id,
+              kind: i.kind,
+              name: i.name,
+              subtitle: i.subtitle,
+              image: i.image,
+              priceQ: i.priceQ,
+              qty: i.qty,
+              components: i.components,
+            })),
+            subtotalQ: pending.subtotalQ,
+            shippingQ: pending.shippingQ,
+            totalQ: pending.totalQ,
+            createdAt: pending.createdAt,
+            status: "en_proceso" as const,
+            customerName: pending.customer.name,
+            customerEmail: pending.customer.email,
+            customerAddress: pending.customer.address,
+            checkoutId: pending.checkoutId,
+          } satisfies Order);
+
+        if (!active) return;
+
+        localStorage.removeItem(PENDING_CHECKOUT_STORAGE_KEY);
+        setOrders(orders);
+        addOrder(order);
+        clear();
+        setLastOrder(order);
+        setStep("success");
+        track("checkout_completed", { priceQ: order.totalQ });
+
+        window.history.replaceState({}, "", "/app/carrito");
+      } catch (err) {
+        if (active) {
+          setPayError(err instanceof Error ? err.message : "Error al confirmar el pago.");
+          setStep("checkout");
+        }
+      } finally {
+        if (active) setIsPaying(false);
+      }
+    }
+
+    void finalizeRecurrenteReturn();
+
+    return () => {
+      active = false;
+    };
+  }, [mounted, addOrder, setOrders, clear]);
 
   useEffect(() => {
     if (step !== "checkout" || checkoutPrefilled) return;
@@ -100,57 +210,96 @@ export default function CartPage() {
   }, [step, checkoutPrefilled, profile.name, profile.email]);
 
   const subtotal = items.reduce((sum, i) => sum + i.priceQ * i.qty, 0);
-  const shipping = items.length > 0 ? SHIPPING_Q : 0;
+  const shipping = calculateShippingQ(subtotal);
   const total = subtotal + shipping;
   const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
-  function handlePay(e: React.FormEvent) {
+  async function handlePay(e: React.FormEvent) {
     e.preventDefault();
     setIsPaying(true);
+    setPayError(null);
     track("checkout_started", { priceQ: total });
 
-    // Simulated payment — a real gateway will replace this later.
-    setTimeout(() => {
-      const order: Order = {
-        id: `VRD-${Date.now().toString().slice(-6)}`,
-        items: items.map((i) => ({
-          id: i.id,
-          kind: i.kind,
-          name: i.name,
-          subtitle: i.subtitle,
-          image: i.image,
-          priceQ: i.priceQ,
-          qty: i.qty,
-          components: i.components,
-        })),
+    try {
+      const ownerId = await getAccountOwnerId();
+      const order = await persistCheckoutOrder({
+        items,
+        subtotalQ: subtotal,
+        shippingQ: shipping,
         totalQ: total,
-        createdAt: new Date().toISOString(),
-        status: "pagado",
-        customerName: form.name.trim(),
-        customerEmail: form.email.trim(),
-      };
+        customer: {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          address: form.address.trim(),
+        },
+        sessionId: ownerId,
+        status: "en_proceso",
+        paymentMethod: defaultCard ? "saved_card" : "direct",
+      });
+
       addOrder(order);
       track("checkout_completed", { priceQ: total });
       setLastOrder(order);
       clear();
-      setIsPaying(false);
       setStep("success");
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "No se pudo completar el pedido.");
+    } finally {
+      setIsPaying(false);
+    }
+  }
 
-      void fetch("/api/orders/notify", {
+  async function handleRecurrentePay() {
+    setIsPaying(true);
+    setPayError(null);
+    track("checkout_started", { priceQ: total });
+
+    try {
+      const ownerId = await getAccountOwnerId();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
+      const res = await fetch("/api/checkout/recurrente", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
-          order: {
-            ...order,
-            subtotalQ: subtotal,
-            shippingQ: shipping,
-            customerAddress: form.address.trim(),
+          items,
+          sessionId: ownerId,
+          customer: {
+            name: form.name.trim(),
+            email: form.email.trim(),
+            address: form.address.trim(),
           },
         }),
-      }).catch((error) => {
-        console.error("Order email notify failed:", error);
       });
-    }, 1500);
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? "No se pudo iniciar el pago con tarjeta.");
+      }
+
+      const data = (await res.json()) as {
+        checkoutUrl: string;
+        pendingOrder: PendingCheckoutOrder;
+      };
+
+      localStorage.setItem(
+        PENDING_CHECKOUT_STORAGE_KEY,
+        JSON.stringify(data.pendingOrder)
+      );
+      window.location.href = data.checkoutUrl;
+    } catch (err) {
+      setPayError(
+        err instanceof Error ? err.message : "No se pudo iniciar el pago con tarjeta."
+      );
+      setIsPaying(false);
+    }
   }
 
   if (!mounted) {
@@ -341,11 +490,16 @@ export default function CartPage() {
                 Datos de envío y pago
               </h2>
               <p className="mt-1 text-sm text-brand-carbon/60">
-                El cobro real se habilitará pronto. Por ahora simulamos el pago
-                para que puedas probar el flujo completo.
+                Confirma tus datos de entrega. Puedes pagar con tarjeta o confirmar el pedido directamente.
               </p>
 
-              <form onSubmit={handlePay} className="mt-6 space-y-4">
+              {payError && (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {payError}
+                </div>
+              )}
+
+              <form onSubmit={(e) => void handlePay(e)} className="mt-6 space-y-4">
                 <Field
                   label="Nombre completo"
                   value={form.name}
@@ -438,7 +592,16 @@ export default function CartPage() {
                   disabled={isPaying}
                   className="flex w-full items-center justify-center gap-2 rounded-full bg-brand-forest px-6 py-3.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-brand-forest/90 disabled:opacity-70"
                 >
-                  {isPaying ? "Procesando pago..." : `Pagar ${formatQ(total)}`}
+                  {isPaying ? "Procesando..." : `Confirmar pedido · ${formatQ(total)}`}
+                </button>
+                <button
+                  type="button"
+                  disabled={isPaying}
+                  onClick={() => void handleRecurrentePay()}
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-brand-forest/30 bg-white px-6 py-3.5 text-sm font-semibold text-brand-forest transition-colors hover:bg-brand-sage/40 disabled:opacity-70"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Pagar con tarjeta
                 </button>
               </form>
             </div>
@@ -575,8 +738,13 @@ export default function CartPage() {
               </div>
               <div className="flex justify-between text-brand-carbon/70">
                 <dt>Envío</dt>
-                <dd>{formatQ(shipping)}</dd>
+                <dd>{shipping > 0 ? formatQ(shipping) : "Gratis"}</dd>
               </div>
+              {subtotal > 0 && subtotal < CHECKOUT_FREE_SHIPPING_THRESHOLD_Q && (
+                <p className="text-[11px] text-brand-carbon/45">
+                  Envío gratis en pedidos desde {formatQ(CHECKOUT_FREE_SHIPPING_THRESHOLD_Q)}
+                </p>
+              )}
               <div className="flex justify-between border-t border-brand-beige/60 pt-3 text-base font-semibold text-brand-forest">
                 <dt>Total</dt>
                 <dd>{formatQ(total)}</dd>

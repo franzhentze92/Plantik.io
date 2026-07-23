@@ -47,6 +47,8 @@ export interface PlanterColorVariant {
 export interface Planter {
   id: string;
   name: string;
+  shortDescription: string;
+  description: string;
   material: string;
   color: string;
   size: string;

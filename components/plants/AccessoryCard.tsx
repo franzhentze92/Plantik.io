@@ -81,6 +81,20 @@ export function AccessoryCard({ accessory }: { accessory: Accessory }) {
         <h3 className="text-sm font-semibold text-brand-carbon">
           {accessory.name}
         </h3>
+        {accessory.category === "plato" &&
+          (accessory.attrs.displayColor || accessory.attrs.diameterCm) && (
+            <p className="text-xs text-brand-carbon/50">
+              {[
+                accessory.attrs.displayColor,
+                accessory.attrs.diameterCm
+                  ? `${accessory.attrs.diameterCm} cm`
+                  : null,
+                accessory.attrs.talla ? `Talla ${accessory.attrs.talla}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          )}
         <p className="mt-0.5 line-clamp-2 text-[11px] text-brand-carbon/55">
           {accessory.description}
         </p>

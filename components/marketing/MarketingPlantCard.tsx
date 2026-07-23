@@ -52,7 +52,6 @@ export function MarketingPlantCard({ plant }: { plant: Plant }) {
           <h3 className="text-sm font-semibold text-brand-carbon transition-colors group-hover:text-brand-forest">
             {plant.name}
           </h3>
-          <p className="text-xs italic text-brand-carbon/50">{plant.scientificName}</p>
         </Link>
 
         {plant.shortDescription && (

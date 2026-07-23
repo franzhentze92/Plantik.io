@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import { AuthProviderDivider } from "@/components/auth/AuthProviderDivider";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { useAuthStore, useProfileStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
+import { resolvePostAuthPath } from "@/lib/auth-redirect";
 import { authErrorMessage } from "@/lib/auth-errors";
 
 const SIGNUP_BENEFITS = [
@@ -38,6 +39,13 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const destination = resolvePostAuthPath(next);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.replace(destination);
+    });
+  }, [router, destination]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,7 +90,6 @@ function SignupForm() {
         ...(form.name ? { name: form.name.trim() } : {}),
         email,
       });
-      const destination = next?.startsWith("/") ? next : "/app";
       router.push(destination);
     } catch {
       setError("No se pudo crear la cuenta. Inténtalo de nuevo.");
@@ -91,9 +98,10 @@ function SignupForm() {
     }
   }
 
-  const loginHref = next
-    ? `/login?next=${encodeURIComponent(next)}`
-    : "/login";
+  const loginHref =
+    destination !== "/app"
+      ? `/login?next=${encodeURIComponent(destination)}`
+      : "/login";
 
   return (
     <AuthPageLayout
@@ -107,7 +115,7 @@ function SignupForm() {
         title="Crea tu cuenta"
         subtitle="Con Google en un clic, o con tu correo abajo. Sin verificación por email."
       >
-        <GoogleAuthButton nextPath={next} label="Registrarse con Google" />
+        <GoogleAuthButton nextPath={destination} label="Registrarse con Google" />
         <AuthProviderDivider label="o con correo" />
 
         <form onSubmit={handleSubmit} className="space-y-4">

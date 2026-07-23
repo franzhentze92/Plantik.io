@@ -483,9 +483,6 @@ export default function BuildPlantPage() {
                             <h3 className="text-sm font-semibold text-brand-carbon break-words">
                               {p.name}
                             </h3>
-                            <p className="text-[11px] italic text-brand-carbon/50">
-                              {p.scientificName}
-                            </p>
                             <p className="mt-1.5 text-sm font-semibold text-brand-forest">
                               {formatQ(p.basePriceQ)}
                             </p>

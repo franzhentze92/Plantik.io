@@ -23,9 +23,6 @@ export function RecommendationCard({
         <p className="truncate text-sm font-semibold text-brand-carbon">
           {plant.name}
         </p>
-        <p className="truncate text-xs italic text-brand-carbon/50">
-          {plant.scientificName}
-        </p>
         <p className="mt-1 text-xs font-medium text-brand-forest">
           {formatQ(plant.basePriceQ)}
         </p>

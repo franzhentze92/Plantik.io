@@ -1,3 +1,4 @@
+import { resolvePostAuthPath } from "@/lib/auth-redirect";
 import { supabase } from "@/lib/supabase";
 
 function appOrigin(): string {
@@ -6,7 +7,7 @@ function appOrigin(): string {
 }
 
 export function buildAuthCallbackUrl(nextPath?: string | null): string {
-  const next = nextPath?.startsWith("/") ? nextPath : "/app";
+  const next = resolvePostAuthPath(nextPath);
   return `${appOrigin()}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 

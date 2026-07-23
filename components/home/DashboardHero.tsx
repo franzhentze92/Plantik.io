@@ -15,7 +15,7 @@ const COLLAGE = [
 const HIGHLIGHTS = [
   {
     icon: Sparkles,
-    title: "Diseño con IA",
+    title: "Diseño con Plantik",
     subtitle: "Sube una foto de tu espacio",
   },
   {

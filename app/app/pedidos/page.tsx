@@ -6,6 +6,9 @@ import Link from "next/link";
 import { ChevronRight, Leaf, Package, ShoppingBag } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { track } from "@/lib/analytics";
+import { getAccountOwnerId } from "@/lib/session";
+import { getOrdersBySessionId } from "@/lib/supabase/orders";
+import { formatOrderStatus, orderStatusBadgeClass } from "@/lib/order-display";
 import { formatQ } from "@/lib/utils";
 import { Order, OrderItem, useOrdersStore } from "@/lib/store";
 
@@ -23,14 +26,31 @@ function formatOrderDate(iso: string) {
 
 export default function OrdersPage() {
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const orders = useOrdersStore((s) => s.orders);
+  const setOrders = useOrdersStore((s) => s.setOrders);
 
   useEffect(() => {
     setMounted(true);
     track("page_view", { route: "/app/pedidos" });
-  }, []);
 
-  if (!mounted) {
+    let active = true;
+    getAccountOwnerId()
+      .then((ownerId) => getOrdersBySessionId(ownerId))
+      .then((data) => {
+        if (active) setOrders(data);
+      })
+      .catch((err) => console.error("Error loading orders:", err))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [setOrders]);
+
+  if (!mounted || loading) {
     return (
       <div className="container-app py-16">
         <p className="text-brand-carbon/60">Cargando...</p>
@@ -105,8 +125,10 @@ function OrderCard({ order }: { order: Order }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="rounded-full bg-brand-sage px-2.5 py-0.5 text-[11px] font-semibold capitalize text-brand-forest">
-            {order.status}
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${orderStatusBadgeClass(order.status)}`}
+          >
+            {formatOrderStatus(order.status)}
           </span>
           <span className="text-sm font-semibold text-brand-forest">
             {formatQ(order.totalQ)}
@@ -125,6 +147,11 @@ function OrderCard({ order }: { order: Order }) {
           {itemCount} artículo{itemCount !== 1 ? "s" : ""}
         </span>
         <div className="flex items-center gap-4">
+          {order.customerAddress && (
+            <span className="hidden max-w-xs truncate md:inline">
+              Entrega: {order.customerAddress}
+            </span>
+          )}
           {order.customerEmail && (
             <span className="hidden sm:inline">
               Confirmación enviada a {order.customerEmail}

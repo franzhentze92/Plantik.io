@@ -3,18 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowRight, Leaf, Sparkles } from "lucide-react";
+import { ArrowRight, Leaf, Shield, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useCartStore, useSavedStore } from "@/lib/store";
-import { navItems } from "./nav-items";
+import { isAdminEmail } from "@/lib/admin";
+import { useAuthStore, useCartStore, useSavedStore } from "@/lib/store";
+import { adminNavItems, navItems } from "./nav-items";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const email = useAuthStore((s) => s.email);
   const savedCount = useSavedStore((s) => s.saved.length);
   const cartCount = useCartStore((s) =>
     s.items.reduce((sum, i) => sum + i.qty, 0)
   );
+  const showAdmin = mounted && isAdminEmail(email);
 
   useEffect(() => setMounted(true), []);
 
@@ -87,6 +90,49 @@ export function AppSidebar() {
                 </Link>
               );
             })}
+
+            {showAdmin && (
+              <>
+                <div className="my-2 border-t border-brand-beige/70" />
+                <p className="flex items-center gap-2 px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-brand-carbon/40 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <Shield className="h-3 w-3" />
+                  Admin
+                </p>
+                {adminNavItems.map((item) => {
+                  const active = pathname.startsWith(item.href);
+                  const Icon = item.icon;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={item.label}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all",
+                        active
+                          ? "bg-brand-sage text-brand-forest"
+                          : "text-brand-carbon/65 hover:bg-brand-sage/50 hover:text-brand-forest"
+                      )}
+                    >
+                      {active && (
+                        <span className="absolute -right-3 top-1/2 h-9 w-1 -translate-y-1/2 rounded-l-full bg-brand-forest" />
+                      )}
+                      <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+                        <Icon
+                          className={cn(
+                            "h-4 w-4",
+                            active && "text-brand-forest"
+                          )}
+                        />
+                      </span>
+                      <span className="whitespace-nowrap opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        {item.label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </>
+            )}
           </nav>
 
           <div className="relative mx-3 mb-6 overflow-hidden rounded-xl2 border border-brand-beige/70 bg-white p-4 opacity-0 shadow-soft transition-opacity duration-200 group-hover:opacity-100">

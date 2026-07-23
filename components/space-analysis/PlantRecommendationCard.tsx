@@ -129,9 +129,6 @@ export function PlantRecommendationCard({
                   <h3 className="font-serif text-xl text-brand-forest">
                     {plant.name}
                   </h3>
-                  <p className="text-xs italic text-brand-carbon/50">
-                    {plant.scientificName}
-                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-semibold text-brand-forest">

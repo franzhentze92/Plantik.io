@@ -154,7 +154,7 @@ export function MarketingFooter() {
             : "border-white/5 text-white/40"
         )}
       >
-        <p>© {new Date().getFullYear()} Plantik. Plantas. Diseño. Bienestar.</p>
+        <p>© {new Date().getFullYear()} Plantik.</p>
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <Link
             href="/terminos"

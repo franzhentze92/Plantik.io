@@ -51,6 +51,22 @@ export function MarketingAccessoryCard({ accessory }: { accessory: Accessory }) 
           <h3 className="text-sm font-semibold text-brand-carbon transition-colors group-hover:text-brand-forest">
             {accessory.name}
           </h3>
+          {accessory.category === "plato" &&
+            (accessory.attrs.displayColor || accessory.attrs.diameterCm) && (
+              <p className="text-xs text-brand-carbon/50">
+                {[
+                  accessory.attrs.displayColor,
+                  accessory.attrs.diameterCm
+                    ? `${accessory.attrs.diameterCm} cm`
+                    : null,
+                  accessory.attrs.talla
+                    ? `Talla ${accessory.attrs.talla}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
         </Link>
         <p className="mt-1 line-clamp-2 text-[11px] text-brand-carbon/55">
           {accessory.description}

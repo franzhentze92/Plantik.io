@@ -205,7 +205,7 @@ export default async function MarketingHomePage() {
 
             <p className="mt-6 max-w-2xl text-base leading-relaxed text-brand-carbon/70 sm:text-lg">
               Plantas, macetas, sustratos y accesorios elegidos para tu hogar u
-              oficina. Compra directo del catálogo, o deja que la IA te proponga
+              oficina. Compra directo del catálogo, o deja que Plantik te proponga
               la combinación perfecta a partir de una foto.
             </p>
 
@@ -395,7 +395,7 @@ export default async function MarketingHomePage() {
             <div className="flex flex-col justify-center p-8 sm:p-12">
               <span className="eyebrow inline-flex items-center gap-2">
                 <Sparkles className="h-3.5 w-3.5" />
-                Diseño con IA
+                Diseño con Plantik
               </span>
               <h2 className="mt-4 font-serif text-3xl text-brand-forest sm:text-4xl">
                 ¿No sabes por dónde empezar? Sube una foto

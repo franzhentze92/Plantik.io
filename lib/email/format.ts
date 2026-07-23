@@ -53,7 +53,7 @@ export function toOrderEmailPayload(
     customerName: order.customerName?.trim() || "Cliente",
     customerEmail: email,
     customerAddress: order.customerAddress?.trim() || "Sin dirección",
-    status: order.status || "pagado",
+    status: order.status || "en_proceso",
   };
 }
 

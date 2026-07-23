@@ -70,7 +70,6 @@ export function PlantCard({ plant }: { plant: Plant }) {
 
       <div className="p-4">
         <h3 className="text-sm font-semibold text-brand-carbon">{plant.name}</h3>
-        <p className="text-xs italic text-brand-carbon/50">{plant.scientificName}</p>
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-brand-forest">
             {formatQ(plant.basePriceQ)}

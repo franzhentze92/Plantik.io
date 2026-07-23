@@ -32,6 +32,12 @@ export function MarketingPlanterCard({ planter }: { planter: Planter }) {
           </p>
         </Link>
 
+        {planter.shortDescription && (
+          <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-brand-carbon/55">
+            {planter.shortDescription}
+          </p>
+        )}
+
         <p className="mt-2 text-[11px] text-brand-carbon/45">
           {planter.diameterCm} cm ·{" "}
           {planter.placement === "ambos"

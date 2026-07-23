@@ -53,6 +53,11 @@ export function PlanterCard({ planter }: { planter: Planter }) {
         <p className="text-xs text-brand-carbon/50">
           {planter.material} · {planter.color}
         </p>
+        {planter.shortDescription && (
+          <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-brand-carbon/55">
+            {planter.shortDescription}
+          </p>
+        )}
         <div className="mt-3 flex items-center justify-between">
           <span className="text-sm font-semibold text-brand-forest">
             {formatQ(planter.priceQ)}

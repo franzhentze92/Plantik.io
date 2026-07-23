@@ -72,6 +72,12 @@ export function MarketingPlanterPreview({ planter }: { planter: Planter }) {
           {planter.material} · {selectedColor}
         </p>
 
+        {planter.description && (
+          <p className="mt-4 text-sm leading-relaxed text-brand-carbon/75">
+            {planter.description}
+          </p>
+        )}
+
         <div className="mt-6">
           <p className="text-xs font-semibold uppercase text-brand-carbon/60">
             Color ·{" "}

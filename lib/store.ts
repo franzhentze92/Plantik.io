@@ -2,6 +2,11 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import {
+  isCatalogProductId,
+  toCatalogProductId,
+} from "@/lib/catalog-ids";
+import { sanitizePersistedCartItem } from "@/lib/resolve-catalog-items";
 import { Proposal, ProposalItem, RoomAnswers, AiRecommendationSet } from "@/types";
 import { supabase } from "@/lib/supabase";
 
@@ -128,20 +133,37 @@ interface CartState {
   clear: () => void;
 }
 
+function normalizeCartItemId(id: string): string {
+  return isCatalogProductId(id) ? toCatalogProductId(id) : id;
+}
+
+function cartItemsMatch(
+  a: Pick<CartItem, "id">,
+  b: Pick<CartItem, "id">
+): boolean {
+  return normalizeCartItemId(a.id) === normalizeCartItemId(b.id);
+}
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
       add: (item, qty = 1) => {
-        const existing = get().items.find((i) => i.id === item.id);
+        const normalized = {
+          ...item,
+          id: normalizeCartItemId(item.id),
+        };
+        const existing = get().items.find((i) => cartItemsMatch(i, normalized));
         if (existing) {
           set({
             items: get().items.map((i) =>
-              i.id === item.id ? { ...i, qty: i.qty + qty } : i
+              cartItemsMatch(i, normalized)
+                ? { ...normalized, qty: i.qty + qty }
+                : i
             ),
           });
         } else {
-          set({ items: [...get().items, { ...item, qty }] });
+          set({ items: [...get().items, { ...normalized, qty }] });
         }
       },
       remove: (id) => set({ items: get().items.filter((i) => i.id !== id) }),
@@ -156,7 +178,17 @@ export const useCartStore = create<CartState>()(
       },
       clear: () => set({ items: [] }),
     }),
-    { name: "verdea_cart" }
+    {
+      name: "verdea_cart",
+      version: 1,
+      migrate: (persisted) => {
+        const state = persisted as CartState;
+        return {
+          ...state,
+          items: (state.items ?? []).map(sanitizePersistedCartItem),
+        };
+      },
+    }
   )
 );
 
@@ -174,27 +206,36 @@ export interface OrderItem {
 export interface Order {
   id: string;
   items: OrderItem[];
+  subtotalQ?: number;
+  shippingQ?: number;
   totalQ: number;
   createdAt: string;
-  status: "pagado";
+  status:
+    | "pendiente_pago"
+    | "en_proceso"
+    | "entregado"
+    | "cancelado"
+    | "pagado";
   customerName?: string;
   customerEmail?: string;
+  customerAddress?: string;
+  checkoutId?: string;
 }
 
 interface OrdersState {
   orders: Order[];
   addOrder: (order: Order) => void;
+  setOrders: (orders: Order[]) => void;
 }
 
-export const useOrdersStore = create<OrdersState>()(
-  persist(
-    (set, get) => ({
-      orders: [],
-      addOrder: (order) => set({ orders: [order, ...get().orders] }),
+export const useOrdersStore = create<OrdersState>()((set, get) => ({
+  orders: [],
+  addOrder: (order) =>
+    set({
+      orders: [order, ...get().orders.filter((o) => o.id !== order.id)],
     }),
-    { name: "verdea_orders" }
-  )
-);
+  setOrders: (orders) => set({ orders }),
+}));
 
 export interface CreationComponent {
   label: string;

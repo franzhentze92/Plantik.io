@@ -1,6 +1,14 @@
 "use client";
 
-import { RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import {
+  LayoutGrid,
+  Leaf,
+  Package,
+  RotateCcw,
+  Shapes,
+  SlidersHorizontal,
+  Sprout,
+} from "lucide-react";
 import {
   ACCESSORY_FILTER_GROUPS,
   AccessoryFilterState,
@@ -13,7 +21,45 @@ import {
 } from "@/lib/catalog-filters";
 import type { AccessoryCategory } from "@/data/accessories";
 
-function FilterChip({
+export type CatalogView =
+  | "todos"
+  | "plantas"
+  | "macetas"
+  | "platos"
+  | "sustratos"
+  | "mulch";
+
+export const CATALOG_TYPE_OPTIONS: {
+  id: CatalogView;
+  label: string;
+  icon: typeof LayoutGrid;
+}[] = [
+  { id: "todos", label: "Todos los productos", icon: LayoutGrid },
+  { id: "plantas", label: "Plantas", icon: Sprout },
+  { id: "macetas", label: "Macetas", icon: Package },
+  { id: "platos", label: "Platos", icon: Shapes },
+  { id: "sustratos", label: "Sustratos", icon: Leaf },
+  { id: "mulch", label: "Cubiertas", icon: Leaf },
+];
+
+function SidebarSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-carbon/45">
+        {label}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function SidebarChip({
   active,
   option,
   onClick,
@@ -48,260 +94,207 @@ function FilterChip({
   );
 }
 
-function FilterSection({
-  label,
-  children,
+export function CatalogFilterSidebar({
+  view,
+  counts,
+  onViewChange,
+  plantFilters,
+  planterFilters,
+  accessoryFilters,
+  accessoryCategory,
+  plantFilterCount,
+  planterFilterCount,
+  accessoryFilterCount,
+  onPlantFiltersChange,
+  onPlanterFiltersChange,
+  onAccessoryFiltersChange,
+  onClearFilters,
 }: {
-  label: string;
-  children: React.ReactNode;
+  view: CatalogView;
+  counts: Record<CatalogView, number>;
+  onViewChange: (view: CatalogView) => void;
+  plantFilters: PlantFilterState;
+  planterFilters: PlanterFilterState;
+  accessoryFilters: AccessoryFilterState;
+  accessoryCategory?: AccessoryCategory;
+  plantFilterCount: number;
+  planterFilterCount: number;
+  accessoryFilterCount: number;
+  onPlantFiltersChange: (filters: PlantFilterState) => void;
+  onPlanterFiltersChange: (filters: PlanterFilterState) => void;
+  onAccessoryFiltersChange: (filters: AccessoryFilterState) => void;
+  onClearFilters: () => void;
 }) {
-  return (
-    <div className="space-y-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-carbon/45">
-        {label}
-      </p>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
-function ActiveTag({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onRemove}
-      className="inline-flex items-center gap-1 rounded-full border border-brand-forest/20 bg-brand-forest/5 px-2.5 py-1 text-[11px] font-medium text-brand-forest transition-colors hover:bg-brand-forest/10"
-    >
-      {label}
-      <X className="h-3 w-3" />
-    </button>
-  );
-}
-
-export function PlantFilterPanel({
-  filters,
-  activeCount,
-  onChange,
-  onClear,
-}: {
-  filters: PlantFilterState;
-  activeCount: number;
-  onChange: (filters: PlantFilterState) => void;
-  onClear: () => void;
-}) {
-  function toggle(groupKey: keyof PlantFilterState, optionId: string) {
-    const current = filters[groupKey];
-    const next = current.includes(optionId)
-      ? current.filter((id) => id !== optionId)
-      : [...current, optionId];
-    onChange({ ...filters, [groupKey]: next });
-  }
-
-  const activeTags = PLANT_FILTER_GROUPS.flatMap((group) =>
-    filters[group.key].map((id) => ({
-      key: `${group.key}-${id}`,
-      label: group.options.find((o) => o.id === id)?.label ?? id,
-      onRemove: () => toggle(group.key, id),
-    }))
-  );
+  const activeFilterCount =
+    view === "plantas"
+      ? plantFilterCount
+      : view === "macetas"
+        ? planterFilterCount
+        : accessoryCategory
+          ? accessoryFilterCount
+          : 0;
 
   return (
-    <FilterPanelShell activeCount={activeCount} activeTags={activeTags} onClear={onClear}>
-      <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {PLANT_FILTER_GROUPS.map((group) => (
-          <FilterSection key={group.key} label={group.label}>
-            {group.options.map((option) => (
-              <FilterChip
+    <div className="space-y-6 rounded-xl2 border border-brand-beige/80 bg-white p-5 shadow-soft">
+      <SidebarSection label="Tipo de producto">
+        <div className="space-y-1.5">
+          {CATALOG_TYPE_OPTIONS.map((option) => {
+            const Icon = option.icon;
+            const active = view === option.id;
+            return (
+              <button
                 key={option.id}
-                active={filters[group.key].includes(option.id)}
-                option={option}
-                onClick={() => toggle(group.key, option.id)}
-              />
-            ))}
-          </FilterSection>
-        ))}
-      </div>
-    </FilterPanelShell>
-  );
-}
-
-export function PlanterFilterPanel({
-  filters,
-  activeCount,
-  onChange,
-  onClear,
-}: {
-  filters: PlanterFilterState;
-  activeCount: number;
-  onChange: (filters: PlanterFilterState) => void;
-  onClear: () => void;
-}) {
-  function toggleList(
-    key: keyof Omit<PlanterFilterState, "drenaje">,
-    optionId: string
-  ) {
-    const current = filters[key];
-    const next = current.includes(optionId)
-      ? current.filter((id) => id !== optionId)
-      : [...current, optionId];
-    onChange({ ...filters, [key]: next });
-  }
-
-  const activeTags = [
-    ...PLANTER_FILTER_GROUPS.flatMap((group) =>
-      filters[group.key].map((id) => ({
-        key: `${group.key}-${id}`,
-        label: group.options.find((o) => o.id === id)?.label ?? id,
-        onRemove: () => toggleList(group.key, id),
-      }))
-    ),
-    ...(filters.drenaje
-      ? [
-          {
-            key: "drenaje",
-            label: "Con drenaje",
-            onRemove: () => onChange({ ...filters, drenaje: false }),
-          },
-        ]
-      : []),
-  ];
-
-  return (
-    <FilterPanelShell activeCount={activeCount} activeTags={activeTags} onClear={onClear}>
-      <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-        {PLANTER_FILTER_GROUPS.map((group) => (
-          <FilterSection key={group.key} label={group.label}>
-            {group.options.map((option) => (
-              <FilterChip
-                key={option.id}
-                active={filters[group.key].includes(option.id)}
-                option={option}
-                onClick={() => toggleList(group.key, option.id)}
-              />
-            ))}
-          </FilterSection>
-        ))}
-        <FilterSection label="Otros">
-          <FilterChip
-            active={filters.drenaje}
-            option={{ id: "drenaje", label: "Con drenaje", icon: DRENAJE_ICON }}
-            onClick={() => onChange({ ...filters, drenaje: !filters.drenaje })}
-          />
-        </FilterSection>
-      </div>
-    </FilterPanelShell>
-  );
-}
-
-export function AccessoryFilterPanel({
-  category,
-  filters,
-  activeCount,
-  onChange,
-  onClear,
-}: {
-  category: AccessoryCategory;
-  filters: AccessoryFilterState;
-  activeCount: number;
-  onChange: (filters: AccessoryFilterState) => void;
-  onClear: () => void;
-}) {
-  const groups = ACCESSORY_FILTER_GROUPS[category];
-
-  function toggle(groupKey: string, optionId: string) {
-    const current = filters[groupKey] ?? [];
-    const next = current.includes(optionId)
-      ? current.filter((id) => id !== optionId)
-      : [...current, optionId];
-    onChange({ ...filters, [groupKey]: next });
-  }
-
-  const activeTags = groups.flatMap((group) =>
-    (filters[group.key] ?? []).map((id) => ({
-      key: `${group.key}-${id}`,
-      label: group.options.find((o) => o.id === id)?.label ?? id,
-      onRemove: () => toggle(group.key, id),
-    }))
-  );
-
-  return (
-    <FilterPanelShell
-      activeCount={activeCount}
-      activeTags={activeTags}
-      onClear={onClear}
-    >
-      <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
-        {groups.map((group) => (
-          <FilterSection key={group.key} label={group.label}>
-            {group.options.map((option) => (
-              <FilterChip
-                key={option.id}
-                active={(filters[group.key] ?? []).includes(option.id)}
-                option={option}
-                onClick={() => toggle(group.key, option.id)}
-              />
-            ))}
-          </FilterSection>
-        ))}
-      </div>
-    </FilterPanelShell>
-  );
-}
-
-function FilterPanelShell({
-  activeCount,
-  activeTags,
-  onClear,
-  children,
-}: {
-  activeCount: number;
-  activeTags: { key: string; label: string; onRemove: () => void }[];
-  onClear: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mt-6 rounded-xl2 border border-brand-beige/80 bg-white shadow-soft">
-      <div className="flex items-center justify-between gap-3 border-b border-brand-beige/60 px-4 py-3.5 sm:px-6">
-        <div className="flex items-center gap-2 text-sm font-semibold text-brand-forest">
-          <SlidersHorizontal className="h-4 w-4" />
-          Filtros
-          {activeCount > 0 && (
-            <span className="rounded-full bg-brand-forest px-2 py-0.5 text-[10px] font-bold text-white">
-              {activeCount}
-            </span>
-          )}
+                type="button"
+                onClick={() => onViewChange(option.id)}
+                className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-brand-forest text-white"
+                    : "text-brand-carbon/75 hover:bg-brand-sage/60"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Icon className="h-4 w-4" />
+                  {option.label}
+                </span>
+                <span
+                  className={`text-[11px] font-semibold ${
+                    active ? "text-white/70" : "text-brand-carbon/40"
+                  }`}
+                >
+                  {counts[option.id]}
+                </span>
+              </button>
+            );
+          })}
         </div>
+      </SidebarSection>
 
-        <button
-          type="button"
-          onClick={onClear}
-          disabled={activeCount === 0}
-          className="inline-flex items-center gap-1.5 rounded-full border border-brand-beige bg-white px-3 py-1.5 text-xs font-medium text-brand-carbon/70 transition-colors hover:border-brand-forest/40 hover:text-brand-forest disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Limpiar filtros
-        </button>
-      </div>
-
-      <div className="space-y-5 px-4 py-5 sm:px-6">
-        {children}
-        {activeTags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 border-t border-brand-beige/60 pt-4">
-            <span className="text-[11px] font-medium text-brand-carbon/45">
-              Activos:
+      {view === "todos" ? (
+        <p className="rounded-xl border border-dashed border-brand-beige bg-brand-cream/50 p-3 text-[11px] leading-relaxed text-brand-carbon/55">
+          Selecciona un tipo de producto para filtrar por características
+          específicas.
+        </p>
+      ) : (
+        <>
+          <div className="flex items-center justify-between border-t border-brand-beige/60 pt-5">
+            <span className="flex items-center gap-2 text-sm font-semibold text-brand-forest">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filtros
+              {activeFilterCount > 0 && (
+                <span className="rounded-full bg-brand-forest px-2 py-0.5 text-[10px] font-bold text-white">
+                  {activeFilterCount}
+                </span>
+              )}
             </span>
-            {activeTags.map((tag) => (
-              <ActiveTag key={tag.key} label={tag.label} onRemove={tag.onRemove} />
-            ))}
+            <button
+              type="button"
+              onClick={onClearFilters}
+              disabled={activeFilterCount === 0}
+              className="inline-flex items-center gap-1 text-xs font-medium text-brand-carbon/60 transition-colors hover:text-brand-forest disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Limpiar
+            </button>
           </div>
-        )}
-      </div>
+
+          {view === "plantas" &&
+            PLANT_FILTER_GROUPS.map((group) => (
+              <SidebarSection key={group.key} label={group.label}>
+                <div className="flex flex-wrap gap-2">
+                  {group.options.map((option) => (
+                    <SidebarChip
+                      key={option.id}
+                      option={option}
+                      active={plantFilters[group.key].includes(option.id)}
+                      onClick={() =>
+                        onPlantFiltersChange({
+                          ...plantFilters,
+                          [group.key]: plantFilters[group.key].includes(option.id)
+                            ? plantFilters[group.key].filter((id) => id !== option.id)
+                            : [...plantFilters[group.key], option.id],
+                        })
+                      }
+                    />
+                  ))}
+                </div>
+              </SidebarSection>
+            ))}
+
+          {view === "macetas" && (
+            <>
+              {PLANTER_FILTER_GROUPS.map((group) => (
+                <SidebarSection key={group.key} label={group.label}>
+                  <div className="flex flex-wrap gap-2">
+                    {group.options.map((option) => (
+                      <SidebarChip
+                        key={option.id}
+                        option={option}
+                        active={planterFilters[group.key].includes(option.id)}
+                        onClick={() =>
+                          onPlanterFiltersChange({
+                            ...planterFilters,
+                            [group.key]: planterFilters[group.key].includes(
+                              option.id
+                            )
+                              ? planterFilters[group.key].filter(
+                                  (id) => id !== option.id
+                                )
+                              : [...planterFilters[group.key], option.id],
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                </SidebarSection>
+              ))}
+              <SidebarSection label="Otros">
+                <div className="flex flex-wrap gap-2">
+                  <SidebarChip
+                    option={{
+                      id: "drenaje",
+                      label: "Con drenaje",
+                      icon: DRENAJE_ICON,
+                    }}
+                    active={planterFilters.drenaje}
+                    onClick={() =>
+                      onPlanterFiltersChange({
+                        ...planterFilters,
+                        drenaje: !planterFilters.drenaje,
+                      })
+                    }
+                  />
+                </div>
+              </SidebarSection>
+            </>
+          )}
+
+          {accessoryCategory &&
+            ACCESSORY_FILTER_GROUPS[accessoryCategory].map((group) => (
+              <SidebarSection key={group.key} label={group.label}>
+                <div className="flex flex-wrap gap-2">
+                  {group.options.map((option) => (
+                    <SidebarChip
+                      key={option.id}
+                      option={option}
+                      active={(accessoryFilters[group.key] ?? []).includes(
+                        option.id
+                      )}
+                      onClick={() => {
+                        const current = accessoryFilters[group.key] ?? [];
+                        onAccessoryFiltersChange({
+                          ...accessoryFilters,
+                          [group.key]: current.includes(option.id)
+                            ? current.filter((id) => id !== option.id)
+                            : [...current, option.id],
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </SidebarSection>
+            ))}
+        </>
+      )}
     </div>
   );
 }

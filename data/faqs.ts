@@ -133,7 +133,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
       {
         iconKey: "banknote",
         q: "¿Cuál es el costo de envío?",
-        a: "El envío tiene una tarifa única de Q35 por pedido, que se suma automáticamente en el resumen del carrito.",
+        a: "El envío cuesta Q20 en pedidos menores a Q100. En compras de Q100 o más, el envío es gratis y se refleja automáticamente en el resumen del carrito.",
       },
       {
         iconKey: "shield-check",

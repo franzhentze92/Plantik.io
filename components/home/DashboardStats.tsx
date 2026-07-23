@@ -12,20 +12,34 @@ import {
 import {
   useCartStore,
   useSavedStore,
-  useOrdersStore,
   useCreationsStore,
 } from "@/lib/store";
+import { getAccountOwnerId } from "@/lib/session";
+import { getOrdersBySessionId } from "@/lib/supabase/orders";
 
 export function DashboardStats() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [ordersCount, setOrdersCount] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+    let active = true;
+    getAccountOwnerId()
+      .then((ownerId) => getOrdersBySessionId(ownerId))
+      .then((orders) => {
+        if (active) setOrdersCount(orders.length);
+      })
+      .catch((err) => console.error("Error loading orders:", err));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const cartCount = useCartStore((s) =>
     s.items.reduce((sum, item) => sum + item.qty, 0)
   );
   const savedCount = useSavedStore((s) => s.saved.length);
   const creationsCount = useCreationsStore((s) => s.creations.length);
-  const ordersCount = useOrdersStore((s) => s.orders.length);
 
   const stats = [
     {

@@ -139,6 +139,12 @@ export default function PlanterDetailPage() {
             {planter.material} · {selectedColor}
           </p>
 
+          {planter.description && (
+            <p className="mt-4 text-sm leading-relaxed text-brand-carbon/75">
+              {planter.description}
+            </p>
+          )}
+
           <div className="mt-6">
             <p className="text-xs font-semibold uppercase text-brand-carbon/60">
               Color · <span className="normal-case text-brand-carbon/50">{selectedColor}</span>

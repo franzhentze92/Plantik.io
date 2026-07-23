@@ -76,9 +76,6 @@ export default async function MarketingPlantDetailPage({
             <h1 className="mt-2 font-serif text-3xl text-brand-forest">
               {plant.name}
             </h1>
-            <p className="text-sm italic text-brand-carbon/50">
-              {plant.scientificName}
-            </p>
             {plant.shortDescription && (
               <p className="mt-4 text-sm text-brand-carbon/75">
                 {plant.shortDescription}

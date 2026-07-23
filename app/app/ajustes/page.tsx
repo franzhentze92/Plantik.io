@@ -145,8 +145,7 @@ export default function SettingsPage() {
               <Shield className="mt-0.5 h-4 w-4 shrink-0 text-brand-forest" />
               <p className="text-xs leading-relaxed text-brand-carbon/65">
                 Tu perfil, direcciones y preferencias se sincronizan con tu
-                sesión en Plantik. Los pedidos se guardan en este dispositivo
-                hasta que conectemos el pago real.
+                sesión en Plantik. Tus pedidos quedan guardados en tu cuenta.
               </p>
             </div>
             <Link

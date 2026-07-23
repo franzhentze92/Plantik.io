@@ -8,7 +8,7 @@ frontend:
       commands:
         # Amplify injects console env vars into the build environment;
         # write them into .env.production so Next.js SSR/API routes see them.
-        - env | grep -E '^(NEXT_PUBLIC_|OPENAI_|RESEND_|EMAIL_|ORDER_|APP_URL=)' >> .env.production || true
+        - env | grep -E '^(NEXT_PUBLIC_|OPENAI_|RESEND_|EMAIL_|ORDER_|RECURRENTE_|APP_URL=)' >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next

@@ -5,15 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, BookMarked, Package, ShoppingBag } from "lucide-react";
 import { formatQ } from "@/lib/utils";
-import { getOrCreateSessionId } from "@/lib/session";
+import { getAccountOwnerId } from "@/lib/session";
 import {
   getProposalsBySessionId,
   type Proposal,
 } from "@/lib/supabase/proposals";
+import { getOrdersBySessionId } from "@/lib/supabase/orders";
 import {
   useCreationsStore,
-  useOrdersStore,
   useSavedStore,
+  type Order,
   type SavedPlant,
 } from "@/lib/store";
 
@@ -58,19 +59,25 @@ function savedHref(item: SavedPlant): string {
 export function DashboardActivity() {
   const [mounted, setMounted] = useState(false);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(true);
-  const orders = useOrdersStore((s) => s.orders);
   const savedItems = useSavedStore((s) => s.saved);
   const creations = useCreationsStore((s) => s.creations);
 
   useEffect(() => {
     setMounted(true);
     let active = true;
-    getProposalsBySessionId(getOrCreateSessionId())
-      .then((data) => {
-        if (active) setProposals(data);
+    getAccountOwnerId()
+      .then(async (ownerId) => {
+        const [proposalData, orderData] = await Promise.all([
+          getProposalsBySessionId(ownerId),
+          getOrdersBySessionId(ownerId),
+        ]);
+        if (!active) return;
+        setProposals(proposalData);
+        setOrders(orderData);
       })
-      .catch((err) => console.error("Error loading proposals:", err))
+      .catch((err) => console.error("Error loading dashboard activity:", err))
       .finally(() => {
         if (active) setLoadingProposals(false);
       });

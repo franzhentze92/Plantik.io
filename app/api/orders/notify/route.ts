@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPaidOrderStatus } from "@/lib/order-display";
 import type { OrderEmailInput } from "@/lib/email/format";
 import { sendOrderEmails } from "@/lib/email/send-order-emails";
 
@@ -28,9 +29,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (order.status && order.status !== "pagado") {
+  if (order.status && !isPaidOrderStatus(order.status)) {
     return NextResponse.json(
-      { error: "Solo se notifica pedidos pagados.", status: order.status },
+      { error: "Solo se notifica pedidos confirmados.", status: order.status },
       { status: 409 }
     );
   }
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
   try {
     const result = await sendOrderEmails({
       ...order,
-      status: order.status ?? "pagado",
+      status: order.status ?? "en_proceso",
       createdAt: order.createdAt || new Date().toISOString(),
       items: Array.isArray(order.items) ? order.items : [],
       totalQ: Number(order.totalQ) || 0,

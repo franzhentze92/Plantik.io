@@ -24,7 +24,7 @@ const values = [
     icon: Sparkles,
     title: "Tecnología al servicio de las plantas",
     description:
-      "Usamos IA no para reemplazar el cuidado, sino para hacer que elegir bien sea accesible para cualquiera.",
+      "Plantik no reemplaza el cuidado de las plantas; hace que elegir bien sea accesible para cualquiera.",
   },
   {
     icon: Users,
@@ -43,7 +43,7 @@ const milestones = [
   },
   {
     year: "2024",
-    title: "Primeras propuestas con IA",
+    title: "Primeras propuestas con Plantik",
     description:
       "Lanzamos el flujo de diseño por foto: subes tu espacio y recibes combinaciones reales en segundos.",
   },

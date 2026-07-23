@@ -154,8 +154,8 @@ export default function HowItWorksPage() {
               </span>
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-brand-carbon/65">
-              ¿Prefieres inspiración? Sube una foto de tu espacio y deja que la
-              IA te proponga combinaciones a tu medida. Es una función extra
+              ¿Prefieres inspiración? Sube una foto de tu espacio y deja que
+              Plantik te proponga combinaciones a tu medida. Es una función extra
               para quienes la quieran usar.
             </p>
             <ul className="mt-4 space-y-2">
@@ -188,7 +188,7 @@ export default function HowItWorksPage() {
           <div className="text-center">
             <span className="eyebrow">Diseño con foto · opcional</span>
             <h2 className="mt-3 font-serif text-3xl text-brand-forest">
-              Cómo funciona el diseño con IA
+              Cómo funciona el diseño con Plantik
             </h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-brand-carbon/60">
               Si eliges la ruta de inspiración, estos son los 4 pasos. Comprar

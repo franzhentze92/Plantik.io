@@ -4,7 +4,7 @@ import { Check, Leaf, Sprout } from "lucide-react";
 const DEFAULT_BENEFITS = [
   "Guarda propuestas y favoritos en un solo lugar",
   "Compra plantas, macetas y accesorios del catálogo",
-  "Diseña tu espacio con IA en menos de 2 minutos",
+  "Diseña tu espacio con Plantik en menos de 2 minutos",
   "Sigue tus pedidos y tu historial de compras",
 ];
 

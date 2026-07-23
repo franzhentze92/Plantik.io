@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Leaf } from "lucide-react";
+import { resolvePostAuthPath } from "@/lib/auth-redirect";
 import { supabase } from "@/lib/supabase";
 import { authErrorMessage } from "@/lib/auth-errors";
 
@@ -22,8 +23,7 @@ function AuthCallbackHandler() {
         return;
       }
 
-      const next = searchParams.get("next");
-      const destination = next?.startsWith("/") ? next : "/app";
+      const destination = resolvePostAuthPath(searchParams.get("next"));
       const code = searchParams.get("code");
 
       if (code) {

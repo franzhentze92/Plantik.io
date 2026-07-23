@@ -7,8 +7,53 @@ import {
   isCatalogProductId,
   stripCatalogIdPrefix,
 } from "@/lib/catalog-ids";
+import {
+  formatPlantCatalogTitle,
+  resolvePlantDisplayName,
+} from "@/lib/plant-catalog-names";
+import { resolvePlantDescription } from "@/lib/plant-catalog-descriptions";
+import { resolvePlanterDisplayName } from "@/lib/planter-catalog-names";
+import {
+  planterShortDescription,
+  resolvePlanterDescription,
+} from "@/lib/planter-catalog-descriptions";
+import { resolvePlatoCatalogName } from "@/lib/plato-catalog-names";
+import { resolvePlatoDescription } from "@/lib/plato-catalog-descriptions";
+import { resolveSustratoCatalogName } from "@/lib/sustrato-catalog-names";
+import { resolveSustratoDescription } from "@/lib/sustrato-catalog-descriptions";
+import { resolveMulchCatalogName } from "@/lib/mulch-catalog-names";
+import { resolveMulchDescription } from "@/lib/mulch-catalog-descriptions";
+import { applyEpaRetailMarkup } from "@/lib/catalog-pricing";
+import {
+  applyOverrideToAccessory,
+  applyOverrideToPlant,
+  applyOverrideToPlanter,
+  type CatalogOverrideRow,
+} from "@/lib/catalog-overrides";
 
 const PLANT_PLACEHOLDER_IMAGE = "/images/plant-placeholder.svg";
+
+let catalogOverridesPromise: Promise<Map<string, CatalogOverrideRow>> | null =
+  null;
+
+async function getCatalogOverridesMap(): Promise<
+  Map<string, CatalogOverrideRow>
+> {
+  if (!catalogOverridesPromise) {
+    catalogOverridesPromise = (async () => {
+      const { data, error } = await supabase.from("catalog_overrides").select("*");
+      if (error) {
+        catalogOverridesPromise = null;
+        console.error("Error fetching catalog overrides:", error);
+        return new Map<string, CatalogOverrideRow>();
+      }
+      return new Map(
+        (data ?? []).map((row) => [row.product_key, row as CatalogOverrideRow])
+      );
+    })();
+  }
+  return catalogOverridesPromise;
+}
 
 // Below this many units in stock a product is flagged as "few units left".
 const LOW_STOCK_THRESHOLD = 5;
@@ -86,7 +131,7 @@ function mapPlantRow(p: any): Plant {
   return {
     id: p.id,
     slug: p.slug,
-    name: p.commercial_name,
+    name: formatPlantCatalogTitle(p.commercial_name, p.scientific_name),
     scientificName: p.scientific_name,
     shortDescription: p.short_description || "",
     description: p.description || "",
@@ -175,15 +220,6 @@ function epaPlantPlacement(attrs: Record<string, string>): Plant["placement"] {
   return "ambos";
 }
 
-function epaScientificName(attrs: Record<string, string>): string {
-  return (
-    attrs["Nombre científico"] ||
-    attrs["Nombre botánico"] ||
-    attrs["Especie"] ||
-    "Planta natural"
-  );
-}
-
 function mapEpaProductToPlant(p: any): Plant {
   const attrs: Record<string, string> = p.attributes || {};
   const sizeCm = epaParseMaxDimensionCm(attrs);
@@ -197,20 +233,31 @@ function mapEpaProductToPlant(p: any): Plant {
     .filter(Boolean);
   if (images.length === 0 && p.image_url) images.push(p.image_url);
 
-  const description = cleanCatalogText(p.description || "");
+  const description = resolvePlantDescription(
+    p.slug || "",
+    p.description || "",
+    cleanCatalogText
+  );
   const shortDescription =
     description.length > 140 ? `${description.slice(0, 137)}...` : description;
+
+  const { common, scientific } = resolvePlantDisplayName(
+    p.name || "",
+    p.slug || "",
+    attrs
+  );
 
   return {
     id: `${CATALOG_ID_PREFIX}${p.id}`,
     slug: `${CATALOG_ID_PREFIX}${p.slug}`,
-    name: cleanCatalogName(p.name),
-    scientificName: epaScientificName(attrs),
+    // Catalog title standard: "Nombre común - Nombre científico"
+    name: formatPlantCatalogTitle(common, scientific),
+    scientificName: scientific,
     shortDescription,
     description,
     category: ["plantas-naturales"],
     sizes: [],
-    basePriceQ: Number(p.price_q),
+    basePriceQ: applyEpaRetailMarkup(Number(p.price_q), "plant"),
     light: epaPlantLight(attrs),
     care: epaPlantCare(attrs),
     wateringFrequencyDays: 7,
@@ -245,12 +292,14 @@ async function getEpaPlantRow(filter: { id?: string; slug?: string }) {
 }
 
 async function getEpaPlants(): Promise<Plant[]> {
-  const { data, error } = await supabase
-    .from("epa_products")
-    .select(IMPORTED_PLANT_SELECT)
-    .eq("category", IMPORTED_PLANT_CATEGORY)
-    .eq("availability", "in_stock")
-    .order("name");
+  const [{ data, error }, overrides] = await Promise.all([
+    supabase
+      .from("epa_products")
+      .select(IMPORTED_PLANT_SELECT)
+      .eq("category", IMPORTED_PLANT_CATEGORY)
+      .order("name"),
+    getCatalogOverridesMap(),
+  ]);
 
   if (error) {
     console.error("Error fetching catalog plants:", error);
@@ -259,7 +308,11 @@ async function getEpaPlants(): Promise<Plant[]> {
 
   return (data || [])
     .filter((p: any) => p.image_url || (p.epa_product_images || []).length > 0)
-    .map(mapEpaProductToPlant);
+    .map((p: any) => mapEpaProductToPlant(p))
+    .map((plant) =>
+      applyOverrideToPlant(plant, overrides.get(stripCatalogIdPrefix(plant.id)))
+    )
+    .filter((plant): plant is Plant => Boolean(plant && plant.stock !== "agotado"));
 }
 
 export async function getPlantsFromDB(): Promise<Plant[]> {
@@ -321,8 +374,13 @@ export async function getAllPlantSlugs(): Promise<string[]> {
 export async function getPlantById(id: string): Promise<Plant | null> {
   if (isCatalogProductId(id)) {
     const catalogId = stripCatalogIdPrefix(id);
-    const data = await getEpaPlantRow({ id: catalogId });
-    return data ? mapEpaProductToPlant(data) : null;
+    const [data, overrides] = await Promise.all([
+      getEpaPlantRow({ id: catalogId }),
+      getCatalogOverridesMap(),
+    ]);
+    if (!data) return null;
+    const plant = mapEpaProductToPlant(data);
+    return applyOverrideToPlant(plant, overrides.get(catalogId));
   }
 
   const { data: plant, error } = await supabase
@@ -346,8 +404,13 @@ export async function getPlantById(id: string): Promise<Plant | null> {
 export async function getPlantBySlug(slug: string): Promise<Plant | null> {
   if (isCatalogProductId(slug)) {
     const catalogSlug = stripCatalogIdPrefix(slug);
-    const data = await getEpaPlantRow({ slug: catalogSlug });
-    return data ? mapEpaProductToPlant(data) : null;
+    const [data, overrides] = await Promise.all([
+      getEpaPlantRow({ slug: catalogSlug }),
+      getCatalogOverridesMap(),
+    ]);
+    if (!data) return null;
+    const plant = mapEpaProductToPlant(data);
+    return applyOverrideToPlant(plant, overrides.get(String(data.id)));
   }
 
   const { data: plant, error } = await supabase
@@ -421,6 +484,10 @@ function mapPlanterRow(p: any): Planter {
   return {
     id: p.id,
     name: p.name,
+    shortDescription: planterShortDescription(
+      p.short_description || p.description || ""
+    ),
+    description: p.description || p.short_description || "",
     material: p.material,
     color: p.color,
     size: p.size,
@@ -441,7 +508,7 @@ function mapPlanterRow(p: any): Planter {
 // Public ids use a neutral `pk-` prefix so routes don't expose the source vendor.
 
 const IMPORTED_PLANTER_SELECT =
-  "id, name, price_q, regular_price_q, on_sale, image_url, availability, attributes";
+  "id, name, slug, description, price_q, regular_price_q, on_sale, image_url, availability, attributes";
 
 function epaParseDiameterCm(attrs: Record<string, string>): number {
   const dims =
@@ -474,16 +541,23 @@ function mapEpaProductToPlanter(p: any): Planter {
   const diameterCm = epaParseDiameterCm(attrs);
   const color = attrs["Color"] || "Natural";
   const image = p.image_url;
+  const description = resolvePlanterDescription(
+    p.name || "",
+    p.slug || "",
+    attrs
+  );
 
   return {
     id: `${CATALOG_ID_PREFIX}${p.id}`,
-    name: cleanCatalogName(p.name),
+    name: resolvePlanterDisplayName(p.name || "", p.slug || "", attrs),
+    shortDescription: planterShortDescription(description),
+    description,
     material: attrs["Material"] || "Plástico",
     color,
     size: epaTalla(diameterCm),
     diameterCm,
     style: catalogStyleLabel(attrs["Colección"], attrs["Diseño"]),
-    priceQ: Number(p.price_q),
+    priceQ: applyEpaRetailMarkup(Number(p.price_q), "planter"),
     drainage: true,
     placement: epaPlacement(attrs),
     image,
@@ -492,12 +566,14 @@ function mapEpaProductToPlanter(p: any): Planter {
 }
 
 async function getEpaPlanters(): Promise<Planter[]> {
-  const { data, error } = await supabase
-    .from("epa_products")
-    .select(IMPORTED_PLANTER_SELECT)
-    .eq("category", "macetas")
-    .eq("availability", "in_stock")
-    .order("name");
+  const [{ data, error }, overrides] = await Promise.all([
+    supabase
+      .from("epa_products")
+      .select(IMPORTED_PLANTER_SELECT)
+      .eq("category", "macetas")
+      .order("name"),
+    getCatalogOverridesMap(),
+  ]);
 
   if (error) {
     console.error("Error fetching catalog planters:", error);
@@ -506,7 +582,14 @@ async function getEpaPlanters(): Promise<Planter[]> {
 
   return (data || [])
     .filter((p: any) => p.image_url && !epaIsPlato(p.name))
-    .map(mapEpaProductToPlanter);
+    .map((p: any) => mapEpaProductToPlanter(p))
+    .map((planter) =>
+      applyOverrideToPlanter(
+        planter,
+        overrides.get(stripCatalogIdPrefix(planter.id))
+      )
+    )
+    .filter(Boolean) as Planter[];
 }
 
 export async function getPlantersFromDB(): Promise<Planter[]> {
@@ -539,18 +622,23 @@ export function getPlantersCached(): Promise<Planter[]> {
 export async function getPlanterById(id: string): Promise<Planter | null> {
   if (isCatalogProductId(id)) {
     const catalogId = stripCatalogIdPrefix(id);
-    const { data, error } = await supabase
-      .from("epa_products")
-      .select(IMPORTED_PLANTER_SELECT)
-      .eq("id", catalogId)
-      .maybeSingle();
+    const [{ data, error }, overrides] = await Promise.all([
+      supabase
+        .from("epa_products")
+        .select(IMPORTED_PLANTER_SELECT)
+        .eq("id", catalogId)
+        .maybeSingle(),
+      getCatalogOverridesMap(),
+    ]);
 
     if (error) {
       console.error("Error fetching catalog planter:", error);
       return null;
     }
 
-    return data ? mapEpaProductToPlanter(data) : null;
+    if (!data) return null;
+    const planter = mapEpaProductToPlanter(data);
+    return applyOverrideToPlanter(planter, overrides.get(catalogId));
   }
 
   const { data, error } = await supabase
@@ -592,6 +680,7 @@ const IMPORTED_ACCESSORY_SOURCE_CATEGORIES = ["sustratos", "macetas"];
 const IMPORTED_ACCESSORY_SELECT = `
   id,
   name,
+  slug,
   category,
   description,
   price_q,
@@ -828,6 +917,9 @@ function mapEpaProductToAccessory(p: any): Accessory {
     accessoryAttrs.talla = epaTalla(epaParseDiameterCm(attrs));
     const color = epaPlatoColor(p.name, attrs);
     if (color) accessoryAttrs.color = color;
+    if (attrs["Color"]) accessoryAttrs.displayColor = attrs["Color"];
+    const diameterCm = epaParseDiameterCm(attrs);
+    if (diameterCm > 0) accessoryAttrs.diameterCm = String(diameterCm);
     swatch = (color && PLATO_COLOR_SWATCH[color]) || "#9C9C94";
   } else if (category === "mulch") {
     accessoryAttrs.tipo = epaMulchTipo(p.name, attrs);
@@ -852,12 +944,35 @@ function mapEpaProductToAccessory(p: any): Accessory {
     .filter(Boolean);
   const image = images[0] || p.image_url || undefined;
 
+  const description =
+    category === "plato"
+      ? resolvePlatoDescription(p.name || "", p.slug || "", attrs)
+      : category === "sustrato"
+        ? resolveSustratoDescription(p.name || "", p.slug || "", attrs)
+        : category === "mulch"
+          ? resolveMulchDescription(p.name || "", p.slug || "", attrs)
+          : cleanCatalogText(p.description || "");
+
   return {
     id: `${CATALOG_ID_PREFIX}${p.id}`,
     category,
-    name: cleanCatalogName(p.name),
-    description: cleanCatalogText(p.description || ""),
-    priceQ: Number(p.price_q),
+    name:
+      category === "plato"
+        ? resolvePlatoCatalogName(p.name || "", p.slug || "", attrs)
+        : category === "sustrato"
+          ? resolveSustratoCatalogName(p.name || "", p.slug || "", attrs)
+          : category === "mulch"
+            ? resolveMulchCatalogName(p.name || "", p.slug || "", attrs)
+            : cleanCatalogName(p.name),
+    description,
+    priceQ: applyEpaRetailMarkup(
+      Number(p.price_q),
+      category === "plato"
+        ? "plato"
+        : category === "mulch"
+          ? "mulch"
+          : "sustrato"
+    ),
     swatch,
     iconKey:
       category === "plato"
@@ -885,11 +1000,14 @@ async function getEpaAccessoryRow(id: string) {
 }
 
 async function getEpaAccessories(): Promise<Accessory[]> {
-  const { data, error } = await supabase
-    .from("epa_products")
-    .select(IMPORTED_ACCESSORY_SELECT)
-    .in("category", IMPORTED_ACCESSORY_SOURCE_CATEGORIES)
-    .order("name");
+  const [{ data, error }, overrides] = await Promise.all([
+    supabase
+      .from("epa_products")
+      .select(IMPORTED_ACCESSORY_SELECT)
+      .in("category", IMPORTED_ACCESSORY_SOURCE_CATEGORIES)
+      .order("name"),
+    getCatalogOverridesMap(),
+  ]);
 
   if (error) {
     console.error("Error fetching catalog accessories:", error);
@@ -901,13 +1019,17 @@ async function getEpaAccessories(): Promise<Accessory[]> {
       (p: any) => p.image_url || (p.epa_product_images || []).length > 0
     )
     .filter((p: any) => {
-      // From the "macetas" listing we only want pot saucers; everything else in
-      // that category stays a planter. EPA has all saucers flagged out of stock,
-      // so we still surface them (marked out of stock) instead of hiding them.
       if (p.category === "macetas") return epaIsPlato(p.name);
       return p.availability === "in_stock";
     })
-    .map(mapEpaProductToAccessory);
+    .map((p: any) => mapEpaProductToAccessory(p))
+    .map((accessory) =>
+      applyOverrideToAccessory(
+        accessory,
+        overrides.get(stripCatalogIdPrefix(accessory.id))
+      )
+    )
+    .filter(Boolean) as Accessory[];
 }
 
 export async function getAccessoriesFromDB(): Promise<Accessory[]> {
@@ -945,8 +1067,13 @@ export function getAccessoriesCached(): Promise<Accessory[]> {
 export async function getAccessoryById(id: string): Promise<Accessory | null> {
   if (isCatalogProductId(id)) {
     const catalogId = stripCatalogIdPrefix(id);
-    const data = await getEpaAccessoryRow(catalogId);
-    return data ? mapEpaProductToAccessory(data) : null;
+    const [data, overrides] = await Promise.all([
+      getEpaAccessoryRow(catalogId),
+      getCatalogOverridesMap(),
+    ]);
+    if (!data) return null;
+    const accessory = mapEpaProductToAccessory(data);
+    return applyOverrideToAccessory(accessory, overrides.get(catalogId));
   }
 
   const { data, error } = await supabase
@@ -968,4 +1095,11 @@ export function getAccessoriesByCategory(
   category: AccessoryCategory
 ): Accessory[] {
   return accessories.filter((a) => a.category === category);
+}
+
+export function invalidateCatalogCache(): void {
+  plantsCachePromise = null;
+  plantersCachePromise = null;
+  accessoriesCachePromise = null;
+  catalogOverridesPromise = null;
 }

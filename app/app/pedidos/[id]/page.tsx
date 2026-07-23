@@ -9,13 +9,25 @@ import {
   Check,
   Layers,
   Leaf,
+  Mail,
+  MapPin,
   Package,
   ShoppingBag,
+  Truck,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { track } from "@/lib/analytics";
+import {
+  formatDeliveryDate,
+  formatOrderStatus,
+  orderShippingQ,
+  orderStatusBadgeClass,
+  orderSubtotalQ,
+} from "@/lib/order-display";
+import { getAccountOwnerId } from "@/lib/session";
+import { getOrderByNumber } from "@/lib/supabase/orders";
 import { formatQ } from "@/lib/utils";
-import { CreationComponent, OrderItem, useOrdersStore } from "@/lib/store";
+import { CreationComponent, Order, OrderItem } from "@/lib/store";
 
 const PLACEHOLDER_IMAGE = "/images/plant-placeholder.svg";
 
@@ -41,15 +53,30 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = decodeURIComponent(String(params?.id ?? ""));
   const [mounted, setMounted] = useState(false);
-  const orders = useOrdersStore((s) => s.orders);
-  const order = orders.find((o) => o.id === orderId);
+  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     setMounted(true);
     track("page_view", { route: "/app/pedidos/[id]" });
-  }, []);
 
-  if (!mounted) {
+    let active = true;
+    getAccountOwnerId()
+      .then((ownerId) => getOrderByNumber(ownerId, orderId))
+      .then((data) => {
+        if (active) setOrder(data);
+      })
+      .catch((err) => console.error("Error loading order:", err))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [orderId]);
+
+  if (!mounted || loading) {
     return (
       <div className="container-app py-16">
         <p className="text-brand-carbon/60">Cargando...</p>
@@ -78,8 +105,10 @@ export default function OrderDetailPage() {
   }
 
   const itemCount = order.items.reduce((sum, i) => sum + i.qty, 0);
-  const subtotal = order.items.reduce((sum, i) => sum + i.priceQ * i.qty, 0);
-  const shipping = Math.max(0, order.totalQ - subtotal);
+  const subtotal = orderSubtotalQ(order);
+  const shipping = orderShippingQ(order);
+  const hasCustomerDetails =
+    order.customerName || order.customerEmail || order.customerAddress;
 
   return (
     <div className="container-app py-10">
@@ -107,15 +136,16 @@ export default function OrderDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-brand-sage px-3 py-1 text-xs font-semibold capitalize text-brand-forest">
-            <Check className="h-3.5 w-3.5" />
-            {order.status}
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${orderStatusBadgeClass(order.status)}`}
+          >
+            {order.status === "entregado" && <Check className="h-3.5 w-3.5" />}
+            {formatOrderStatus(order.status)}
           </span>
         </div>
       </div>
 
-      {/* Resumen + datos de la compra arriba */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-xl2 border border-brand-beige bg-white p-6 shadow-soft">
           <h2 className="font-semibold text-brand-forest">Resumen</h2>
           <dl className="mt-4 space-y-2 text-sm">
@@ -125,7 +155,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="flex justify-between text-brand-carbon/70">
               <dt>Envío</dt>
-              <dd>{shipping > 0 ? formatQ(shipping) : "Incluido"}</dd>
+              <dd>{shipping > 0 ? formatQ(shipping) : "Gratis"}</dd>
             </div>
             <div className="mt-2 flex justify-between border-t border-brand-beige pt-3 text-base font-semibold text-brand-forest">
               <dt>Total</dt>
@@ -134,12 +164,51 @@ export default function OrderDetailPage() {
           </dl>
         </div>
 
-        {(order.customerName || order.customerEmail) && (
+        <div className="rounded-xl2 border border-brand-beige bg-white p-6 shadow-soft">
+          <h2 className="font-semibold text-brand-forest">Entrega</h2>
+          <div className="mt-4 space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-sage text-brand-forest">
+                <Truck className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-brand-carbon/45">
+                  Entrega estimada
+                </p>
+                <p className="text-sm font-semibold text-brand-carbon">Mañana</p>
+                <p className="text-xs text-brand-carbon/55">
+                  {formatDeliveryDate(order.createdAt)}
+                </p>
+              </div>
+            </div>
+            {order.customerAddress ? (
+              <div className="flex items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-sage text-brand-forest">
+                  <MapPin className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-brand-carbon/45">
+                    Dirección de entrega
+                  </p>
+                  <p className="text-sm leading-relaxed text-brand-carbon/80">
+                    {order.customerAddress}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-brand-carbon/55">
+                No hay dirección registrada para este pedido.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {hasCustomerDetails && (
           <div className="rounded-xl2 border border-brand-beige bg-white p-6 shadow-soft">
             <h2 className="font-semibold text-brand-forest">
               Datos de la compra
             </h2>
-            <dl className="mt-4 space-y-3 text-sm">
+            <dl className="mt-4 space-y-4 text-sm">
               {order.customerName && (
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
@@ -149,12 +218,27 @@ export default function OrderDetailPage() {
                 </div>
               )}
               {order.customerEmail && (
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-sage text-brand-forest">
+                    <Mail className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
+                      Confirmación enviada a
+                    </dt>
+                    <dd className="break-all text-brand-carbon/80">
+                      {order.customerEmail}
+                    </dd>
+                  </div>
+                </div>
+              )}
+              {order.checkoutId && (
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-brand-carbon/45">
-                    Confirmación enviada a
+                    Referencia de pago
                   </dt>
-                  <dd className="break-all text-brand-carbon/80">
-                    {order.customerEmail}
+                  <dd className="break-all font-mono text-xs text-brand-carbon/70">
+                    {order.checkoutId}
                   </dd>
                 </div>
               )}
