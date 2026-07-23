@@ -23,7 +23,7 @@ function getAdminEmail(): string {
 function getFromAddress(): string {
   return (
     process.env.EMAIL_FROM?.trim() ||
-    "Plantik <onboarding@resend.dev>"
+    "Plantik <info@plantik.io>"
   );
 }
 
